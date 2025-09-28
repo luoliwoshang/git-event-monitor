@@ -143,24 +143,7 @@ func (c *Client) AnalyzeCodeEvents(ctx context.Context, req *models.AnalysisRequ
 
 // isCodeSubmissionEvent 判断是否为代码提交事件
 func isCodeSubmissionEvent(event *models.UnifiedEvent) bool {
-	switch event.Type {
-	case "PushEvent":
-		return true
-	case "PullRequestEvent":
-		// 检查是否为已合并的 PR
-		if payload, ok := event.Payload["action"]; ok {
-			if action, ok := payload.(string); ok && action == "closed" {
-				if pr, ok := event.Payload["pull_request"].(map[string]interface{}); ok {
-					if merged, ok := pr["merged"].(bool); ok {
-						return merged
-					}
-				}
-			}
-		}
-		return false
-	default:
-		return false
-	}
+	return event.Type == "PushEvent"
 }
 
 // formatDuration 格式化持续时间
