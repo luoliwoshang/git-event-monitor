@@ -38,6 +38,10 @@ export function formatDateTime(dateString: string): string {
   return dayjs(dateString).format('YYYY-MM-DD HH:mm:ss UTC')
 }
 
+export function formatLocalDateTime(dateString: string): string {
+  return dayjs(dateString).format('YYYY-MM-DD HH:mm:ss')
+}
+
 export function isValidDateTime(dateString: string): boolean {
   return dayjs(dateString).isValid()
 }

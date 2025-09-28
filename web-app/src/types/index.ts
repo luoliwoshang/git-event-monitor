@@ -36,18 +36,25 @@ export interface GitHubEvent {
   created_at: string
 }
 
-export interface PushEventResult {
+// 重命名为更通用的类型，支持多种代码提交事件
+export type PushEvent = GitHubEvent
+
+export interface CodeEventResult {
   found: boolean
   eventsChecked: number
-  lastPushEvent?: GitHubEvent
-  pushedBefore?: boolean
+  lastCodeEvent?: PushEvent
+  submittedBefore?: boolean
   timeDifference?: string
+  eventDescription?: string
   error?: string
 }
+
+// 保持向后兼容
+export type PushEventResult = CodeEventResult
 
 export interface MonitorRequest {
   repository: string
   platform: 'github' | 'gitee'
   token?: string
-  deadline?: string
+  deadline?: Date
 }
