@@ -1,18 +1,8 @@
-import {
-  VStack,
-  FormControl,
-  FormLabel,
-  Input,
-  Select,
-  Button,
-  Alert,
-  AlertIcon,
-  FormHelperText,
-} from '@chakra-ui/react'
 import { useState } from 'react'
 import { MonitorRequest } from '../types'
 import { GitHubApiService } from '../services/githubApi'
 import { isValidDateTime } from '../utils/timeUtils'
+import './RepositoryForm.css'
 
 interface RepositoryFormProps {
   onAnalyze: (result: any) => void
@@ -69,67 +59,71 @@ export function RepositoryForm({ onAnalyze, onLoading, isLoading }: RepositoryFo
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <VStack spacing={4} align="stretch">
+    <div className="repository-form">
+      <form onSubmit={handleSubmit}>
         {error && (
-          <Alert status="error">
-            <AlertIcon />
-            {error}
-          </Alert>
+          <div className="error-alert">
+            ⚠️ {error}
+          </div>
         )}
 
-        <FormControl isRequired>
-          <FormLabel>Repository</FormLabel>
-          <Input
+        <div className="form-group">
+          <label htmlFor="repository">Repository *</label>
+          <input
+            id="repository"
+            type="text"
             placeholder="owner/repository"
             value={repository}
             onChange={(e) => setRepository(e.target.value)}
+            required
           />
-          <FormHelperText>Enter repository in format: owner/repo</FormHelperText>
-        </FormControl>
+          <small>Enter repository in format: owner/repo</small>
+        </div>
 
-        <FormControl>
-          <FormLabel>Platform</FormLabel>
-          <Select
+        <div className="form-group">
+          <label htmlFor="platform">Platform</label>
+          <select
+            id="platform"
             value={platform}
             onChange={(e) => setPlatform(e.target.value as 'github' | 'gitee')}
           >
             <option value="github">GitHub</option>
             <option value="gitee" disabled>Gitee (Coming Soon)</option>
-          </Select>
-        </FormControl>
+          </select>
+        </div>
 
-        <FormControl>
-          <FormLabel>API Token (Optional)</FormLabel>
-          <Input
+        <div className="form-group">
+          <label htmlFor="token">API Token (Optional)</label>
+          <input
+            id="token"
             type="password"
             placeholder="ghp_xxxxxxxxxxxx"
             value={token}
             onChange={(e) => setToken(e.target.value)}
           />
-          <FormHelperText>Optional. Increases rate limits and allows private repos</FormHelperText>
-        </FormControl>
+          <small>Optional. Increases rate limits and allows private repos</small>
+        </div>
 
-        <FormControl>
-          <FormLabel>Deadline (Optional)</FormLabel>
-          <Input
+        <div className="form-group">
+          <label htmlFor="deadline">Deadline (Optional)</label>
+          <input
+            id="deadline"
+            type="text"
             placeholder="2024-03-15T18:00:00Z"
             value={deadline}
             onChange={(e) => setDeadline(e.target.value)}
           />
-          <FormHelperText>ISO 8601 format. Leave empty to just show last push time</FormHelperText>
-        </FormControl>
+          <small>ISO 8601 format. Leave empty to just show last push time</small>
+        </div>
 
-        <Button
+        <button
           type="submit"
-          colorScheme="brand"
-          size="lg"
-          isLoading={isLoading}
-          loadingText="Analyzing..."
+          className={`submit-button ${isLoading ? 'loading' : ''}`}
+          disabled={isLoading}
         >
-          Analyze Repository
-        </Button>
-      </VStack>
-    </form>
+          {isLoading ? 'Analyzing...' : 'Analyze Repository'}
+        </button>
+      </form>
+    </div>
   )
 }

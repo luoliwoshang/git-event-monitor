@@ -1,12 +1,11 @@
-import { ChakraProvider } from '@chakra-ui/react'
 import { GitEventMonitor } from './components/GitEventMonitor'
-import theme from './theme'
+import './App.css'
 
 function App() {
   return (
-    <ChakraProvider theme={theme}>
+    <div className="App">
       <GitEventMonitor />
-    </ChakraProvider>
+    </div>
   )
 }
 
