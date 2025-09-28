@@ -7,7 +7,7 @@
 1. 获取仓库最后代码推送事件的真实时间（代码活跃事件）
 2. 不能基于 commit 时间来判断（因为 commit 时间可以被修改）
 3. 同时支持 GitHub 和 Gitee 平台
-4. 提供命令行界面
+4. 提供 Web 界面，通过 GitHub Pages 部署
 5. 检查所有分支，确保没有任何分支在截止时间后有更新
 
 ## 使用场景
@@ -18,6 +18,7 @@
 - **GitHub**: `/repos/{owner}/{repo}/events` - 获取仓库事件（包括 PushEvent）
   - 返回最近 30 天内最多 300 个事件
   - 支持 `per_page` 参数（最大100，默认30），建议使用 per_page=100
+  - 支持 CORS，可从浏览器直接调用
   - Token 可选（公开仓库不需要，私有仓库或提高频率限制需要）
   - PushEvent 包含推送时间、分支信息等
   - 文档：https://docs.github.com/en/rest/activity/events#list-repository-events
@@ -25,6 +26,7 @@
 - **Gitee**: `/api/v5/repos/{owner}/{repo}/events` - 列出仓库的所有公开动态
   - Token 可选（公开仓库不需要，私有仓库需要）
   - 支持 `limit` 参数，默认使用 limit=100
+  - 可能存在 CORS 限制，需要在实现时验证
   - 数据结构与 GitHub 类似，包含 `created_at`、`type`、`payload.ref` 等字段
   - WebHook 文档：https://help.gitee.com/webhook/gitee-webhook-push-data-format/
 
@@ -40,19 +42,14 @@
 - 事件类型：过滤 `type: "PushEvent"`
 - 分支信息：`payload.ref` 包含分支信息
 
-### 工具类型
-命令行工具
+### 应用类型
+React Web 应用，部署在 GitHub Pages
 
-### 输入参数设计
-- `--repo` / `-r`: 仓库路径（格式: owner/repo）
-- `--platform` / `-p`: 平台选择（github | gitee）
-- `--token` / `-t`: API 访问令牌（可选，公开仓库不需要）
-- `--deadline` / `-d`: 截止时间检查（可选，ISO 8601 格式，如 `2024-03-15T18:00:00Z`）
-- `--format` / `-f`: 输出格式（text | json，默认 text）
-
-### 默认行为
-- 不提供 `--deadline` 时：显示最后一次推送时间
-- 提供 `--deadline` 时：检查是否在截止时间后有推送活动
+### 输入界面设计
+- 仓库路径输入框（格式: owner/repo）
+- 平台选择（GitHub | Gitee）
+- API Token 输入框（可选，用于私有仓库或提高频率限制）
+- 截止时间输入框（可选，ISO 8601 格式，如 `2024-03-15T18:00:00Z`）
 
 ### 输出内容设计
 1. **检查统计**: 检查了多少个事件（limit 数量）
@@ -62,37 +59,13 @@
 5. **分支信息**: 哪个分支有最后的推送
 
 ### 技术选择
-- **编程语言**: Go
-- **HTTP 库**: 标准库 `net/http` 或 `golang.org/x/net`
-- **时间处理**: 标准库 `time` 包
-- **JSON 解析**: 标准库 `encoding/json`
-
-### 架构设计
-
-#### 分层架构
-```
-┌─────────────────────────┐
-│     应用层 (App Layer)    │
-├─────────────────────────┤
-│  CLI Tool    │ Web API  │
-├─────────────────────────┤
-│    核心逻辑层 (Core)      │
-├─────────────────────────┤
-│ Git Event Finder        │
-│ Time Analyzer           │
-│ Platform API Client     │
-└─────────────────────────┘
-```
-
-#### 核心模块
-1. **Platform API Client**: GitHub/Gitee API 调用封装
-2. **Git Event Finder**: 推送事件查找和过滤逻辑
-3. **Time Analyzer**: 时间比较和差值计算
-4. **应用层**: CLI 工具和未来的 Web API 服务
-
-#### 接口设计
-- 核心逻辑层提供统一接口，支持多种应用层调用
-- 便于扩展新的 Git 平台和应用场景
+- **前端框架**: React + TypeScript
+- **UI 库**: Chakra UI 或 Mantine（现代化设计）
+- **HTTP 请求**: Fetch API 或 Axios
+- **时间处理**: Day.js
+- **部署**: GitHub Pages
+- **构建工具**: Vite
+- **样式**: CSS-in-JS 或 Tailwind CSS（支持炫酷动效）
 
 ## 实现目标
 获取指定仓库最后一次代码推送到远程仓库的真实时间
