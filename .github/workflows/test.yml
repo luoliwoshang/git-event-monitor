@@ -1,0 +1,66 @@
+name: Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Build
+      run: go build -v ./cmd/git-event-monitor
+
+    - name: Run GitHub API tests
+      run: go test -v ./internal/api/github
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Run Gitee API tests
+      run: go test -v ./internal/api/gitee
+
+    - name: Run all tests
+      run: go test -v ./internal/...
+
+    - name: Test CLI tool
+      run: |
+        go build -o bin/git-event-monitor ./cmd/git-event-monitor
+        ./bin/git-event-monitor --help
+        ./bin/git-event-monitor check --help
+
+    - name: Integration test - GitHub
+      run: |
+        echo "Testing GitHub integration..."
+        ./bin/git-event-monitor check microsoft/vscode --output json | jq '.found'
+
+    - name: Integration test - Gitee
+      run: |
+        echo "Testing Gitee integration..."
+        ./bin/git-event-monitor check XhyQAQ/gemstone-merchant --platform gitee --output json | jq '.found'
+
+    - name: Deadline compliance test
+      run: |
+        echo "Testing deadline compliance check..."
+        ./bin/git-event-monitor check microsoft/vscode --deadline "2024-01-01T00:00:00Z" --output json | jq '.submitted_before'
