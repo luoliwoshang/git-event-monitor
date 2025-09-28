@@ -129,3 +129,68 @@ func TestGitHubClient_AnalyzeWithFutureDeadline(t *testing.T) {
 	t.Logf("Analysis result with future deadline: Found=%v, SubmittedBefore=%v, TimeDiff=%s",
 		result.Found, *result.SubmittedBefore, result.TimeDifference)
 }
+
+func TestGitHubClient_NonExistentRepository(t *testing.T) {
+	client := NewClient()
+
+	// 测试不存在的仓库
+	_, err := client.GetEvents(context.Background(), "nonexistent/repository", "")
+	if err == nil {
+		t.Fatal("Expected error for non-existent repository")
+	}
+
+	// 应该返回 404 错误
+	expectedError := "API request failed with status 404"
+	if err.Error() != expectedError {
+		t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
+	}
+
+	t.Logf("Correctly handled non-existent repository: %v", err)
+}
+
+func TestGitHubClient_AnalyzeNonExistentRepository(t *testing.T) {
+	client := NewClient()
+
+	req := &models.AnalysisRequest{
+		Repository: "definitely/nonexistent",
+		Platform:   models.PlatformGitHub,
+		Token:      "",
+		Deadline:   "2024-01-01T00:00:00Z",
+	}
+
+	result, err := client.AnalyzeCodeEvents(context.Background(), req)
+	if err != nil {
+		t.Fatalf("AnalyzeCodeEvents should not return error, but got: %v", err)
+	}
+
+	// 应该返回未找到结果
+	if result.Found {
+		t.Error("Expected Found to be false for non-existent repository")
+	}
+
+	if result.EventsChecked != 0 {
+		t.Errorf("Expected EventsChecked to be 0, got %d", result.EventsChecked)
+	}
+
+	if result.Error == "" {
+		t.Error("Expected Error to be set for non-existent repository")
+	}
+
+	// 错误信息应该包含 404
+	if !contains(result.Error, "404") {
+		t.Errorf("Expected error to contain '404', got: %s", result.Error)
+	}
+
+	t.Logf("Analysis result for non-existent repo: Found=%v, Error=%s",
+		result.Found, result.Error)
+}
+
+// Helper function to check if string contains substring
+func contains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

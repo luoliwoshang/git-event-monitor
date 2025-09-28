@@ -33,16 +33,8 @@ jobs:
     - name: Build
       run: go build -v ./cmd/git-event-monitor
 
-    - name: Run GitHub API tests
-      run: go test -v ./internal/api/github
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Run Gitee API tests
-      run: go test -v ./internal/api/gitee
-
     - name: Run all tests
-      run: go test -v ./internal/...
+      run: go test -v ./...
 
     - name: Test CLI tool
       run: |
@@ -64,3 +56,21 @@ jobs:
       run: |
         echo "Testing deadline compliance check..."
         ./bin/git-event-monitor check microsoft/vscode --deadline "2024-01-01T00:00:00Z" --output json | jq '.submitted_before'
+
+    - name: Non-existent repository test - GitHub
+      run: |
+        echo "Testing non-existent GitHub repository..."
+        result=$(./bin/git-event-monitor check nonexistent/repository --output json | jq '.found')
+        if [ "$result" != "false" ]; then
+          echo "Expected found=false for non-existent repository"
+          exit 1
+        fi
+
+    - name: Non-existent repository test - Gitee
+      run: |
+        echo "Testing non-existent Gitee repository..."
+        result=$(./bin/git-event-monitor check nonexistent/repository --platform gitee --output json | jq '.found')
+        if [ "$result" != "false" ]; then
+          echo "Expected found=false for non-existent repository"
+          exit 1
+        fi
