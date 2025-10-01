@@ -39,7 +39,7 @@ func (c *Client) GetEvents(ctx context.Context, repo string, token string) ([]*m
 		return nil, fmt.Errorf("invalid repository format, expected 'owner/repo'")
 	}
 
-	url := fmt.Sprintf("%s/networks/%s/%s/events", c.baseURL, parts[0], parts[1])
+	url := fmt.Sprintf("%s/repos/%s/%s/events", c.baseURL, parts[0], parts[1])
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -166,4 +166,47 @@ func formatDuration(d time.Duration) string {
 		return fmt.Sprintf("%d天%d小时", days, hours)
 	}
 	return fmt.Sprintf("%d天", days)
+}
+
+// HasCommits 检查Gitee仓库是否有提交记录
+// 通过调用Gitee Commits API来判断仓库是否为空
+// 返回值：
+//   - true: 仓库有代码提交
+//   - false: 仓库为空（无提交记录）
+//   - error: API调用失败或其他错误
+func (c *Client) HasCommits(ctx context.Context, repo string, token string) (bool, error) {
+	// 构建API URL，只请求第一个commit来减少开销
+	url := fmt.Sprintf("%s/repos/%s/commits", c.baseURL, repo)
+
+	// 创建HTTP请求
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return false, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	// 如果提供了token，添加认证头
+	if token != "" {
+		req.Header.Set("Authorization", "token "+token)
+	}
+
+	// 发送HTTP请求
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("请求失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 根据HTTP状态码判断结果
+	switch resp.StatusCode {
+	case 200:
+		// 状态码200表示请求成功，仓库有提交记录
+		return true, nil
+	case 404:
+		// 状态码404表示仓库为空或不存在
+		// 在这种情况下，我们认为是没有提交记录
+		return false, nil
+	default:
+		// 其他状态码表示API调用出现异常
+		return false, fmt.Errorf("Gitee API返回异常状态码: %d", resp.StatusCode)
+	}
 }

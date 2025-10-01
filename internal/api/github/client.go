@@ -166,3 +166,53 @@ func formatDuration(d time.Duration) string {
 	}
 	return fmt.Sprintf("%d days", days)
 }
+
+// HasCommits 检查GitHub仓库是否有提交记录
+// 通过调用GitHub Commits API来判断仓库是否为空
+// 返回值：
+//   - true: 仓库有代码提交
+//   - false: 仓库为空（无提交记录）
+//   - error: API调用失败或其他错误
+func (c *Client) HasCommits(ctx context.Context, repo string, token string) (bool, error) {
+	// 构建API URL，只请求第一个commit来减少开销
+	url := fmt.Sprintf("%s/repos/%s/commits?per_page=1", c.baseURL, repo)
+
+	// 创建HTTP请求
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return false, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	// 设置请求头
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+	// 如果提供了token，添加认证头
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	// 发送HTTP请求
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("请求失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 根据HTTP状态码判断结果
+	switch resp.StatusCode {
+	case 200:
+		// 状态码200表示请求成功，仓库有提交记录
+		return true, nil
+	case 409:
+		// 状态码409表示仓库为空（Git Repository is empty）
+		return false, nil
+	case 404:
+		// 状态码404表示仓库不存在或无权限访问
+		// 在这种情况下，我们认为是没有提交记录
+		return false, nil
+	default:
+		// 其他状态码表示API调用出现异常
+		return false, fmt.Errorf("GitHub API返回异常状态码: %d", resp.StatusCode)
+	}
+}
