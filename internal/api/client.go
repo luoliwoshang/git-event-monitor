@@ -19,6 +19,22 @@ type Client interface {
 	// 返回 true 表示仓库有代码提交，false 表示空仓库
 	HasCommits(ctx context.Context, repo string, token string) (bool, error)
 
+	// GetCommitCount 获取仓库的 commit 总数
+	// 通过分页遍历 commits API 统计提交数量，最多统计 1000 个
+	// 返回值：
+	//   - count: commit 数量
+	//   - isComplete: 是否完整统计（true=完整统计，false=达到1000上限）
+	//   - error: 错误信息
+	GetCommitCount(ctx context.Context, repo string, token string) (count int, isComplete bool, err error)
+
+	// GetPRCount 获取仓库的 PR/MR 总数
+	// 通过分页遍历 pull requests API 统计 PR 数量，最多统计 1000 个
+	// 返回值：
+	//   - count: PR 数量
+	//   - isComplete: 是否完整统计（true=完整统计，false=达到1000上限）
+	//   - error: 错误信息
+	GetPRCount(ctx context.Context, repo string, token string) (count int, isComplete bool, err error)
+
 	// GetPlatform 获取平台类型
 	GetPlatform() models.Platform
 }

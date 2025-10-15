@@ -210,3 +210,190 @@ func (c *Client) HasCommits(ctx context.Context, repo string, token string) (boo
 		return false, fmt.Errorf("Gitee API返回异常状态码: %d", resp.StatusCode)
 	}
 }
+
+// getCommitList 获取Gitee仓库的commit列表（内部方法）
+// 通过分页遍历commits API获取提交列表，最多获取1000个
+// 返回值：
+//   - commits: commit列表
+//   - isComplete: 是否完整获取（true=完整，false=达到1000上限）
+//   - error: 错误信息
+func (c *Client) getCommitList(ctx context.Context, repo string, token string) ([]models.Commit, bool, error) {
+	var commits []models.Commit
+	page := 1
+	maxPages := 10 // 10页 × 100 = 1000 commits
+	perPage := 100
+
+	for page <= maxPages {
+		// 构建API URL
+		url := fmt.Sprintf("%s/repos/%s/commits", c.baseURL, repo)
+
+		// 创建HTTP请求
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			return nil, false, fmt.Errorf("创建请求失败: %w", err)
+		}
+
+		// 设置查询参数
+		q := req.URL.Query()
+		q.Set("per_page", fmt.Sprintf("%d", perPage))
+		q.Set("page", fmt.Sprintf("%d", page))
+		if token != "" {
+			q.Set("access_token", token)
+		}
+		req.URL.RawQuery = q.Encode()
+
+		// 发送HTTP请求
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, false, fmt.Errorf("请求失败: %w", err)
+		}
+
+		// 检查状态码
+		if resp.StatusCode == 404 {
+			// 空仓库或不存在
+			resp.Body.Close()
+			return []models.Commit{}, true, nil
+		}
+
+		if resp.StatusCode != 200 {
+			resp.Body.Close()
+			return nil, false, fmt.Errorf("Gitee API返回异常状态码: %d", resp.StatusCode)
+		}
+
+		// 解析响应
+		var rawCommits []map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&rawCommits); err != nil {
+			resp.Body.Close()
+			return nil, false, fmt.Errorf("解析响应失败: %w", err)
+		}
+		resp.Body.Close()
+
+		// 如果没有commits了，说明已经到最后一页
+		if len(rawCommits) == 0 {
+			return commits, true, nil
+		}
+
+		// 转换为 Commit 结构（目前为空结构体）
+		for range rawCommits {
+			commits = append(commits, models.Commit{})
+		}
+
+		// 如果返回的commits少于perPage，说明这是最后一页
+		if len(rawCommits) < perPage {
+			return commits, true, nil
+		}
+
+		page++
+	}
+
+	// 达到最大页数限制，返回非完整列表
+	return commits, false, nil
+}
+
+// GetCommitCount 获取Gitee仓库的commit总数
+// 通过分页遍历commits API统计提交数量，最多统计1000个
+// 返回值：
+//   - count: commit数量
+//   - isComplete: 是否完整统计（true=完整统计，false=达到1000上限）
+//   - error: 错误信息
+func (c *Client) GetCommitCount(ctx context.Context, repo string, token string) (int, bool, error) {
+	commits, isComplete, err := c.getCommitList(ctx, repo, token)
+	if err != nil {
+		return 0, false, err
+	}
+	return len(commits), isComplete, nil
+}
+
+// getPRList 获取Gitee仓库的PR列表（内部方法）
+// 通过分页遍历pull requests API获取PR列表，最多获取1000个
+// 返回值：
+//   - prs: PR列表
+//   - isComplete: 是否完整获取（true=完整，false=达到1000上限）
+//   - error: 错误信息
+func (c *Client) getPRList(ctx context.Context, repo string, token string) ([]models.PullRequest, bool, error) {
+	var prs []models.PullRequest
+	page := 1
+	maxPages := 10 // 10页 × 100 = 1000 PRs
+	perPage := 100
+
+	for page <= maxPages {
+		// 构建API URL - 获取所有状态的PR (open, closed, merged, all)
+		url := fmt.Sprintf("%s/repos/%s/pulls", c.baseURL, repo)
+
+		// 创建HTTP请求
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			return nil, false, fmt.Errorf("创建请求失败: %w", err)
+		}
+
+		// 设置查询参数
+		q := req.URL.Query()
+		q.Set("state", "all") // 获取所有状态的PR
+		q.Set("per_page", fmt.Sprintf("%d", perPage))
+		q.Set("page", fmt.Sprintf("%d", page))
+		if token != "" {
+			q.Set("access_token", token)
+		}
+		req.URL.RawQuery = q.Encode()
+
+		// 发送HTTP请求
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, false, fmt.Errorf("请求失败: %w", err)
+		}
+
+		// 检查状态码
+		if resp.StatusCode == 404 {
+			// 仓库不存在
+			resp.Body.Close()
+			return []models.PullRequest{}, true, nil
+		}
+
+		if resp.StatusCode != 200 {
+			resp.Body.Close()
+			return nil, false, fmt.Errorf("Gitee API返回异常状态码: %d", resp.StatusCode)
+		}
+
+		// 解析响应
+		var rawPRs []map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&rawPRs); err != nil {
+			resp.Body.Close()
+			return nil, false, fmt.Errorf("解析响应失败: %w", err)
+		}
+		resp.Body.Close()
+
+		// 如果没有PRs了，说明已经到最后一页
+		if len(rawPRs) == 0 {
+			return prs, true, nil
+		}
+
+		// 转换为 PullRequest 结构（目前为空结构体）
+		for range rawPRs {
+			prs = append(prs, models.PullRequest{})
+		}
+
+		// 如果返回的PRs少于perPage，说明这是最后一页
+		if len(rawPRs) < perPage {
+			return prs, true, nil
+		}
+
+		page++
+	}
+
+	// 达到最大页数限制，返回非完整列表
+	return prs, false, nil
+}
+
+// GetPRCount 获取Gitee仓库的PR总数
+// 通过分页遍历pull requests API统计PR数量，最多统计1000个
+// 返回值：
+//   - count: PR数量
+//   - isComplete: 是否完整统计（true=完整统计，false=达到1000上限）
+//   - error: 错误信息
+func (c *Client) GetPRCount(ctx context.Context, repo string, token string) (int, bool, error) {
+	prs, isComplete, err := c.getPRList(ctx, repo, token)
+	if err != nil {
+		return 0, false, err
+	}
+	return len(prs), isComplete, nil
+}

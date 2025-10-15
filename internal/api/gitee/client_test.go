@@ -249,6 +249,112 @@ func TestGiteeClient_HasCommits_NonExistent(t *testing.T) {
 	t.Logf("✅ Non-existent repository returns false: %v", !hasCommits)
 }
 
+// TestGiteeClient_GetCommitCount_SmallRepo 测试小型仓库的 commit 统计
+func TestGiteeClient_GetCommitCount_SmallRepo(t *testing.T) {
+	client := NewClient()
+
+	// 测试 dog-can-only-be-a-dog/qci - 有一定数量的 commits
+	count, isComplete, err := client.GetCommitCount(context.Background(), "dog-can-only-be-a-dog/qci", "")
+	if err != nil {
+		t.Fatalf("GetCommitCount failed: %v", err)
+	}
+
+	if count == 0 {
+		t.Error("Expected dog-can-only-be-a-dog/qci to have commits, but got 0")
+	}
+
+	t.Logf("✅ dog-can-only-be-a-dog/qci has %d commits (complete: %v)", count, isComplete)
+}
+
+// TestGiteeClient_GetCommitCount_EmptyRepo 测试空仓库的 commit 统计
+func TestGiteeClient_GetCommitCount_EmptyRepo(t *testing.T) {
+	client := NewClient()
+
+	// 测试 hmy520/empty-repo-test - 空仓库
+	count, isComplete, err := client.GetCommitCount(context.Background(), "hmy520/empty-repo-test", "")
+	if err != nil {
+		t.Fatalf("GetCommitCount failed: %v", err)
+	}
+
+	if count != 0 {
+		t.Errorf("Expected empty repo to have 0 commits, but got %d", count)
+	}
+
+	if !isComplete {
+		t.Error("Expected isComplete to be true for empty repo")
+	}
+
+	t.Logf("✅ Empty repo has %d commits (complete: %v)", count, isComplete)
+}
+
+// TestGiteeClient_GetCommitCount_NonExistent 测试不存在的仓库
+func TestGiteeClient_GetCommitCount_NonExistent(t *testing.T) {
+	client := NewClient()
+
+	// 测试不存在的仓库
+	count, isComplete, err := client.GetCommitCount(context.Background(), "definitely/does-not-exist-12345", "")
+	if err != nil {
+		t.Fatalf("GetCommitCount failed: %v", err)
+	}
+
+	if count != 0 {
+		t.Errorf("Expected non-existent repo to have 0 commits, but got %d", count)
+	}
+
+	if !isComplete {
+		t.Error("Expected isComplete to be true for non-existent repo")
+	}
+
+	t.Logf("✅ Non-existent repo returns 0 commits (complete: %v)", isComplete)
+}
+
+// TestGiteeClient_GetPRCount_WithPRs 测试有PR的仓库
+func TestGiteeClient_GetPRCount_WithPRs(t *testing.T) {
+	client := NewClient()
+
+	// 测试 dog-can-only-be-a-dog/qci - 应该有一些 PRs
+	count, isComplete, err := client.GetPRCount(context.Background(), "dog-can-only-be-a-dog/qci", "")
+	if err != nil {
+		t.Fatalf("GetPRCount failed: %v", err)
+	}
+
+	t.Logf("✅ dog-can-only-be-a-dog/qci has %d PRs (complete: %v)", count, isComplete)
+}
+
+// TestGiteeClient_GetPRCount_NoPRs 测试没有PR的仓库
+func TestGiteeClient_GetPRCount_NoPRs(t *testing.T) {
+	client := NewClient()
+
+	// 测试 hmy520/empty-repo-test - 空仓库，没有PRs
+	count, isComplete, err := client.GetPRCount(context.Background(), "hmy520/empty-repo-test", "")
+	if err != nil {
+		t.Fatalf("GetPRCount failed: %v", err)
+	}
+
+	if count != 0 {
+		t.Errorf("Expected empty repo to have 0 PRs, but got %d", count)
+	}
+
+	t.Logf("✅ Empty repo has %d PRs (complete: %v)", count, isComplete)
+}
+
+// TestGiteeClient_GetPRCount_NonExistent 测试不存在的仓库
+func TestGiteeClient_GetPRCount_NonExistent(t *testing.T) {
+	client := NewClient()
+
+	// 测试不存在的仓库
+	count, isComplete, err := client.GetPRCount(context.Background(), "definitely/does-not-exist-12345", "")
+	if err != nil {
+		t.Fatalf("GetPRCount failed: %v", err)
+	}
+
+	if count != 0 {
+		t.Errorf("Expected non-existent repo to have 0 PRs, but got %d", count)
+	}
+
+	t.Logf("✅ Non-existent repo returns 0 PRs (complete: %v)", isComplete)
+}
+
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
