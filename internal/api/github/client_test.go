@@ -305,6 +305,10 @@ func TestGitHubClient_GetPRCount_WithPRs(t *testing.T) {
 		t.Fatalf("GetPRCount failed: %v", err)
 	}
 
+	if count == 0 {
+		t.Error("Expected goplus/xgo to have PRs, but got 0")
+	}
+
 	t.Logf("✅ goplus/xgo has %d PRs (complete: %v)", count, isComplete)
 }
 

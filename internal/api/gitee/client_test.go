@@ -312,13 +312,17 @@ func TestGiteeClient_GetCommitCount_NonExistent(t *testing.T) {
 func TestGiteeClient_GetPRCount_WithPRs(t *testing.T) {
 	client := NewClient()
 
-	// 测试 dog-can-only-be-a-dog/qci - 应该有一些 PRs
-	count, isComplete, err := client.GetPRCount(context.Background(), "dog-can-only-be-a-dog/qci", "")
+	// 测试 OpenCloudOS/OpenCloudOS-Kernel - 应该有很多 PRs
+	count, isComplete, err := client.GetPRCount(context.Background(), "OpenCloudOS/OpenCloudOS-Kernel", "")
 	if err != nil {
 		t.Fatalf("GetPRCount failed: %v", err)
 	}
 
-	t.Logf("✅ dog-can-only-be-a-dog/qci has %d PRs (complete: %v)", count, isComplete)
+	if count == 0 {
+		t.Error("Expected OpenCloudOS/OpenCloudOS-Kernel to have PRs, but got 0")
+	}
+
+	t.Logf("✅ OpenCloudOS/OpenCloudOS-Kernel has %d PRs (complete: %v)", count, isComplete)
 }
 
 // TestGiteeClient_GetPRCount_NoPRs 测试没有PR的仓库
