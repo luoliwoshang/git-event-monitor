@@ -185,6 +185,57 @@ func TestGitHubClient_AnalyzeNonExistentRepository(t *testing.T) {
 		result.Found, result.Error)
 }
 
+// TestGitHubClient_HasCommits_WithCommits 测试有提交记录的仓库
+func TestGitHubClient_HasCommits_WithCommits(t *testing.T) {
+	client := NewClient()
+
+	// 测试 goplus/xgo - 活跃项目，肯定有 commits
+	hasCommits, err := client.HasCommits(context.Background(), "goplus/xgo", "")
+	if err != nil {
+		t.Fatalf("HasCommits failed: %v", err)
+	}
+
+	if !hasCommits {
+		t.Error("Expected goplus/xgo to have commits, but got false")
+	}
+
+	t.Logf("✅ goplus/xgo has commits: %v", hasCommits)
+}
+
+// TestGitHubClient_HasCommits_EmptyRepo 测试空仓库
+func TestGitHubClient_HasCommits_EmptyRepo(t *testing.T) {
+	client := NewClient()
+
+	// 测试 luoliwoshang/empty-repo-test - 空仓库
+	hasCommits, err := client.HasCommits(context.Background(), "luoliwoshang/empty-repo-test", "")
+	if err != nil {
+		t.Fatalf("HasCommits failed: %v", err)
+	}
+
+	if hasCommits {
+		t.Error("Expected luoliwoshang/empty-repo-test to be empty, but got true")
+	}
+
+	t.Logf("✅ luoliwoshang/empty-repo-test is empty: %v", !hasCommits)
+}
+
+// TestGitHubClient_HasCommits_NonExistent 测试不存在的仓库
+func TestGitHubClient_HasCommits_NonExistent(t *testing.T) {
+	client := NewClient()
+
+	// 测试不存在的仓库
+	hasCommits, err := client.HasCommits(context.Background(), "definitely/does-not-exist-12345", "")
+	if err != nil {
+		t.Fatalf("HasCommits failed: %v", err)
+	}
+
+	if hasCommits {
+		t.Error("Expected non-existent repository to return false, but got true")
+	}
+
+	t.Logf("✅ Non-existent repository returns false: %v", !hasCommits)
+}
+
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
