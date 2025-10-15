@@ -367,9 +367,26 @@ func (c *Client) getPRList(ctx context.Context, repo string, token string) ([]mo
 			return prs, true, nil
 		}
 
-		// 转换为 PullRequest 结构（目前为空结构体）
-		for range rawPRs {
-			prs = append(prs, models.PullRequest{})
+		// 转换为 PullRequest 结构并解析状态
+		for _, rawPR := range rawPRs {
+			pr := models.PullRequest{}
+
+			// 解析状态
+			state, _ := rawPR["state"].(string)
+
+			// Gitee API 的 state 可能是 "open", "closed", "merged", "rejected"
+			switch state {
+			case "open":
+				pr.State = models.PRStateOpen
+			case "merged":
+				pr.State = models.PRStateMerged
+			case "closed", "rejected": // rejected 也算 closed
+				pr.State = models.PRStateClosed
+			default:
+				pr.State = models.PRStateClosed // 默认为 closed
+			}
+
+			prs = append(prs, pr)
 		}
 
 		// 如果返回的PRs少于perPage，说明这是最后一页
@@ -396,4 +413,35 @@ func (c *Client) GetPRCount(ctx context.Context, repo string, token string) (int
 		return 0, false, err
 	}
 	return len(prs), isComplete, nil
+}
+
+// GetPRStats 获取Gitee仓库的PR统计信息（按状态分类）
+// 通过分页遍历pull requests API统计各状态PR数量，最多统计1000个
+// 返回值：
+//   - stats: PR统计信息（总数、open、closed、merged）
+//   - isComplete: 是否完整统计（true=完整统计，false=达到1000上限）
+//   - error: 错误信息
+func (c *Client) GetPRStats(ctx context.Context, repo string, token string) (*models.PRStats, bool, error) {
+	prs, isComplete, err := c.getPRList(ctx, repo, token)
+	if err != nil {
+		return nil, false, err
+	}
+
+	stats := &models.PRStats{
+		Total: len(prs),
+	}
+
+	// 统计各状态的PR数量
+	for _, pr := range prs {
+		switch pr.State {
+		case models.PRStateOpen:
+			stats.Open++
+		case models.PRStateClosed:
+			stats.Closed++
+		case models.PRStateMerged:
+			stats.Merged++
+		}
+	}
+
+	return stats, isComplete, nil
 }

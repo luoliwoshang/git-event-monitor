@@ -355,6 +355,41 @@ func TestGiteeClient_GetPRCount_NonExistent(t *testing.T) {
 	t.Logf("✅ Non-existent repo returns 0 PRs (complete: %v)", isComplete)
 }
 
+// TestGiteeClient_GetPRStats 测试 PR 状态统计
+func TestGiteeClient_GetPRStats(t *testing.T) {
+	client := NewClient()
+
+	// 测试 OpenCloudOS/OpenCloudOS-Kernel - 有三种状态的 PRs
+	stats, isComplete, err := client.GetPRStats(context.Background(), "OpenCloudOS/OpenCloudOS-Kernel", "")
+	if err != nil {
+		t.Fatalf("GetPRStats failed: %v", err)
+	}
+
+	if stats.Total == 0 {
+		t.Error("Expected OpenCloudOS/OpenCloudOS-Kernel to have PRs, but got 0")
+	}
+
+	t.Logf("✅ OpenCloudOS/OpenCloudOS-Kernel PR stats: Total=%d, Open=%d, Closed=%d, Merged=%d (complete: %v)",
+		stats.Total, stats.Open, stats.Closed, stats.Merged, isComplete)
+
+	// 验证统计的一致性
+	if stats.Total != stats.Open+stats.Closed+stats.Merged {
+		t.Errorf("PR count mismatch: Total=%d, but Open+Closed+Merged=%d",
+			stats.Total, stats.Open+stats.Closed+stats.Merged)
+	}
+
+	// 验证三种状态都存在（必须都有数据）
+	if stats.Open == 0 {
+		t.Error("Expected to have open PRs, but got 0")
+	}
+	if stats.Closed == 0 {
+		t.Error("Expected to have closed PRs, but got 0")
+	}
+	if stats.Merged == 0 {
+		t.Error("Expected to have merged PRs, but got 0")
+	}
+}
+
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {

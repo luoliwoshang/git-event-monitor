@@ -35,6 +35,14 @@ type Client interface {
 	//   - error: 错误信息
 	GetPRCount(ctx context.Context, repo string, token string) (count int, isComplete bool, err error)
 
+	// GetPRStats 获取仓库的 PR 统计信息（按状态分类）
+	// 通过分页遍历 pull requests API 统计各状态 PR 数量，最多统计 1000 个
+	// 返回值：
+	//   - stats: PR 统计信息（总数、open、closed、merged）
+	//   - isComplete: 是否完整统计（true=完整统计，false=达到1000上限）
+	//   - error: 错误信息
+	GetPRStats(ctx context.Context, repo string, token string) (stats *models.PRStats, isComplete bool, err error)
+
 	// GetPlatform 获取平台类型
 	GetPlatform() models.Platform
 }
