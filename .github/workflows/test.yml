@@ -35,6 +35,9 @@ jobs:
 
     - name: Run all tests
       run: go test -v ./...
+      env:
+        GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Test CLI tool
       run: |
