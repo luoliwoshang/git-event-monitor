@@ -108,13 +108,13 @@ func TestProcessCSV(t *testing.T) {
 		t.Fatal("No tokens set (GITEE_TOKEN or GITHUB_TOKEN/GH_TOKEN) - test requires valid tokens")
 	}
 
-	t.Run("Gitee_Repository", func(t *testing.T) {
-		if giteeToken == "" {
-			t.Fatal("GITEE_TOKEN not set - test requires valid token")
+	t.Run("Multiple_Repositories", func(t *testing.T) {
+		if giteeToken == "" && githubToken == "" {
+			t.Fatal("At least one token (GITEE_TOKEN or GITHUB_TOKEN/GH_TOKEN) must be set")
 		}
 
 		// 读取测试输入文件
-		inputFile := filepath.Join("testdata", "gitee_test_input.csv")
+		inputFile := filepath.Join("testdata", "test_input.csv")
 		records, err := readCSVFile(inputFile)
 		if err != nil {
 			t.Fatalf("Failed to read input CSV: %v", err)
@@ -128,7 +128,7 @@ func TestProcessCSV(t *testing.T) {
 		processedRecords := processCSVRecords(t, records, giteeToken, githubToken)
 
 		// 读取期望的输出文件
-		expectedFile := filepath.Join("testdata", "gitee_test_expected.csv")
+		expectedFile := filepath.Join("testdata", "test_expected.csv")
 		expectedRecords, err := readCSVFile(expectedFile)
 		if err != nil {
 			t.Fatalf("Failed to read expected CSV: %v", err)
@@ -158,7 +158,7 @@ func TestProcessCSV(t *testing.T) {
 		}
 
 		// 可选：写入实际输出文件用于调试
-		outputFile := filepath.Join("testdata", "gitee_test_output.csv")
+		outputFile := filepath.Join("testdata", "test_output.csv")
 		err = writeCSVFile(outputFile, processedRecords)
 		if err != nil {
 			t.Fatalf("Failed to write output CSV: %v", err)
