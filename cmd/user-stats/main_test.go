@@ -123,57 +123,42 @@ func TestProcessCSV(t *testing.T) {
 		// 处理 CSV
 		processedRecords := processCSVRecords(t, records, giteeToken, githubToken)
 
-		// 验证输出
-		if len(processedRecords) != len(records) {
-			t.Fatalf("Output records count mismatch: expected %d, got %d",
-				len(records), len(processedRecords))
+		// 读取期望的输出文件
+		expectedFile := filepath.Join("testdata", "gitee_test_expected.csv")
+		expectedRecords, err := readCSVFile(expectedFile)
+		if err != nil {
+			t.Fatalf("Failed to read expected CSV: %v", err)
 		}
 
-		// 验证表头
-		expectedHeaders := []string{"姓名", "仓库地址", "Commit数量", "PR总数", "PR-Open", "PR-Merged", "PR-Closed"}
-		headers := processedRecords[0]
-		if len(headers) != len(expectedHeaders) {
-			t.Errorf("Header count mismatch: expected %d columns, got %d", len(expectedHeaders), len(headers))
+		// 对比结果
+		if len(processedRecords) != len(expectedRecords) {
+			t.Fatalf("Row count mismatch: expected %d rows, got %d rows",
+				len(expectedRecords), len(processedRecords))
 		}
 
-		// 验证数据行
-		if len(processedRecords) > 1 {
-			dataRow := processedRecords[1]
-			t.Logf("Processed data: %v", dataRow)
-
-			// 验证 Commit 数量（索引 2）
-			if len(dataRow) > 2 && dataRow[2] != "3" {
-				t.Errorf("Expected 3 commits, got %s", dataRow[2])
+		for i, expectedRow := range expectedRecords {
+			actualRow := processedRecords[i]
+			if len(actualRow) != len(expectedRow) {
+				t.Errorf("Row %d: column count mismatch: expected %d columns, got %d columns",
+					i, len(expectedRow), len(actualRow))
+				continue
 			}
 
-			// 验证 PR 总数（索引 3）
-			if len(dataRow) > 3 && dataRow[3] != "3" {
-				t.Errorf("Expected 3 total PRs, got %s", dataRow[3])
-			}
-
-			// 验证 PR-Open（索引 4）
-			if len(dataRow) > 4 && dataRow[4] != "1" {
-				t.Errorf("Expected 1 open PR, got %s", dataRow[4])
-			}
-
-			// 验证 PR-Merged（索引 5）
-			if len(dataRow) > 5 && dataRow[5] != "1" {
-				t.Errorf("Expected 1 merged PR, got %s", dataRow[5])
-			}
-
-			// 验证 PR-Closed（索引 6）
-			if len(dataRow) > 6 && dataRow[6] != "1" {
-				t.Errorf("Expected 1 closed PR, got %s", dataRow[6])
+			for j, expectedCell := range expectedRow {
+				actualCell := actualRow[j]
+				if actualCell != expectedCell {
+					t.Errorf("Row %d, Column %d: expected %q, got %q",
+						i, j, expectedCell, actualCell)
+				}
 			}
 		}
 
-		// 写入输出文件
+		// 可选：写入实际输出文件用于调试
 		outputFile := filepath.Join("testdata", "gitee_test_output.csv")
 		err = writeCSVFile(outputFile, processedRecords)
 		if err != nil {
 			t.Fatalf("Failed to write output CSV: %v", err)
 		}
-
 		t.Logf("Output written to: %s", outputFile)
 
 		// 清理输出文件
