@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -468,23 +469,5 @@ func split(s, sep string) []string {
 
 // formatInt 格式化整数为字符串
 func formatInt(n int) string {
-	if n == 0 {
-		return "0"
-	}
-
-	negative := n < 0
-	if negative {
-		n = -n
-	}
-
-	digits := ""
-	for n > 0 {
-		digits = string(byte('0'+n%10)) + digits
-		n /= 10
-	}
-
-	if negative {
-		return "-" + digits
-	}
-	return digits
+	return strconv.Itoa(n)
 }
