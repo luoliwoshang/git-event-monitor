@@ -37,6 +37,7 @@ jobs:
       run: go test -v ./...
       env:
         GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        GH_TOKEN: ${{ secrets.GH_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Test CLI tool

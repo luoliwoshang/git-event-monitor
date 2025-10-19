@@ -97,11 +97,15 @@ func TestGiteeRepository(t *testing.T) {
 // TestProcessCSV 测试端到端的 CSV 处理流程
 func TestProcessCSV(t *testing.T) {
 	// 读取环境变量中的 token
+	// GitHub Actions 不允许设置 GITHUB_ 开头的 secret，所以支持多个环境变量名
 	giteeToken := os.Getenv("GITEE_TOKEN")
 	githubToken := os.Getenv("GITHUB_TOKEN")
+	if githubToken == "" {
+		githubToken = os.Getenv("GH_TOKEN") // 备用变量名
+	}
 
 	if giteeToken == "" && githubToken == "" {
-		t.Fatal("No tokens set (GITEE_TOKEN or GITHUB_TOKEN) - test requires valid tokens")
+		t.Fatal("No tokens set (GITEE_TOKEN or GITHUB_TOKEN/GH_TOKEN) - test requires valid tokens")
 	}
 
 	t.Run("Gitee_Repository", func(t *testing.T) {
