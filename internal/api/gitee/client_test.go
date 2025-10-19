@@ -249,6 +249,151 @@ func TestGiteeClient_HasCommits_NonExistent(t *testing.T) {
 	t.Logf("✅ Non-existent repository returns false: %v", !hasCommits)
 }
 
+// TestGiteeClient_GetCommitCount_SmallRepo 测试小型仓库的 commit 统计
+func TestGiteeClient_GetCommitCount_SmallRepo(t *testing.T) {
+	client := NewClient()
+
+	// 测试 dog-can-only-be-a-dog/qci - 有一定数量的 commits
+	count, isComplete, err := client.GetCommitCount(context.Background(), "dog-can-only-be-a-dog/qci", "")
+	if err != nil {
+		t.Fatalf("GetCommitCount failed: %v", err)
+	}
+
+	if count == 0 {
+		t.Error("Expected dog-can-only-be-a-dog/qci to have commits, but got 0")
+	}
+
+	t.Logf("✅ dog-can-only-be-a-dog/qci has %d commits (complete: %v)", count, isComplete)
+}
+
+// TestGiteeClient_GetCommitCount_EmptyRepo 测试空仓库的 commit 统计
+func TestGiteeClient_GetCommitCount_EmptyRepo(t *testing.T) {
+	client := NewClient()
+
+	// 测试 hmy520/empty-repo-test - 空仓库
+	count, isComplete, err := client.GetCommitCount(context.Background(), "hmy520/empty-repo-test", "")
+	if err != nil {
+		t.Fatalf("GetCommitCount failed: %v", err)
+	}
+
+	if count != 0 {
+		t.Errorf("Expected empty repo to have 0 commits, but got %d", count)
+	}
+
+	if !isComplete {
+		t.Error("Expected isComplete to be true for empty repo")
+	}
+
+	t.Logf("✅ Empty repo has %d commits (complete: %v)", count, isComplete)
+}
+
+// TestGiteeClient_GetCommitCount_NonExistent 测试不存在的仓库
+func TestGiteeClient_GetCommitCount_NonExistent(t *testing.T) {
+	client := NewClient()
+
+	// 测试不存在的仓库
+	count, isComplete, err := client.GetCommitCount(context.Background(), "definitely/does-not-exist-12345", "")
+	if err != nil {
+		t.Fatalf("GetCommitCount failed: %v", err)
+	}
+
+	if count != 0 {
+		t.Errorf("Expected non-existent repo to have 0 commits, but got %d", count)
+	}
+
+	if !isComplete {
+		t.Error("Expected isComplete to be true for non-existent repo")
+	}
+
+	t.Logf("✅ Non-existent repo returns 0 commits (complete: %v)", isComplete)
+}
+
+// TestGiteeClient_GetPRCount_WithPRs 测试有PR的仓库
+func TestGiteeClient_GetPRCount_WithPRs(t *testing.T) {
+	client := NewClient()
+
+	// 测试 OpenCloudOS/OpenCloudOS-Kernel - 应该有很多 PRs
+	count, isComplete, err := client.GetPRCount(context.Background(), "OpenCloudOS/OpenCloudOS-Kernel", "")
+	if err != nil {
+		t.Fatalf("GetPRCount failed: %v", err)
+	}
+
+	if count == 0 {
+		t.Error("Expected OpenCloudOS/OpenCloudOS-Kernel to have PRs, but got 0")
+	}
+
+	t.Logf("✅ OpenCloudOS/OpenCloudOS-Kernel has %d PRs (complete: %v)", count, isComplete)
+}
+
+// TestGiteeClient_GetPRCount_NoPRs 测试没有PR的仓库
+func TestGiteeClient_GetPRCount_NoPRs(t *testing.T) {
+	client := NewClient()
+
+	// 测试 hmy520/empty-repo-test - 空仓库，没有PRs
+	count, isComplete, err := client.GetPRCount(context.Background(), "hmy520/empty-repo-test", "")
+	if err != nil {
+		t.Fatalf("GetPRCount failed: %v", err)
+	}
+
+	if count != 0 {
+		t.Errorf("Expected empty repo to have 0 PRs, but got %d", count)
+	}
+
+	t.Logf("✅ Empty repo has %d PRs (complete: %v)", count, isComplete)
+}
+
+// TestGiteeClient_GetPRCount_NonExistent 测试不存在的仓库
+func TestGiteeClient_GetPRCount_NonExistent(t *testing.T) {
+	client := NewClient()
+
+	// 测试不存在的仓库
+	count, isComplete, err := client.GetPRCount(context.Background(), "definitely/does-not-exist-12345", "")
+	if err != nil {
+		t.Fatalf("GetPRCount failed: %v", err)
+	}
+
+	if count != 0 {
+		t.Errorf("Expected non-existent repo to have 0 PRs, but got %d", count)
+	}
+
+	t.Logf("✅ Non-existent repo returns 0 PRs (complete: %v)", isComplete)
+}
+
+// TestGiteeClient_GetPRStats 测试 PR 状态统计
+func TestGiteeClient_GetPRStats(t *testing.T) {
+	client := NewClient()
+
+	// 测试 OpenCloudOS/OpenCloudOS-Kernel - 有三种状态的 PRs
+	stats, isComplete, err := client.GetPRStats(context.Background(), "OpenCloudOS/OpenCloudOS-Kernel", "")
+	if err != nil {
+		t.Fatalf("GetPRStats failed: %v", err)
+	}
+
+	if stats.Total == 0 {
+		t.Error("Expected OpenCloudOS/OpenCloudOS-Kernel to have PRs, but got 0")
+	}
+
+	t.Logf("✅ OpenCloudOS/OpenCloudOS-Kernel PR stats: Total=%d, Open=%d, Closed=%d, Merged=%d (complete: %v)",
+		stats.Total, stats.Open, stats.Closed, stats.Merged, isComplete)
+
+	// 验证统计的一致性
+	if stats.Total != stats.Open+stats.Closed+stats.Merged {
+		t.Errorf("PR count mismatch: Total=%d, but Open+Closed+Merged=%d",
+			stats.Total, stats.Open+stats.Closed+stats.Merged)
+	}
+
+	// 验证三种状态都存在（必须都有数据）
+	if stats.Open == 0 {
+		t.Error("Expected to have open PRs, but got 0")
+	}
+	if stats.Closed == 0 {
+		t.Error("Expected to have closed PRs, but got 0")
+	}
+	if stats.Merged == 0 {
+		t.Error("Expected to have merged PRs, but got 0")
+	}
+}
+
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
