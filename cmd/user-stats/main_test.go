@@ -170,11 +170,11 @@ func TestProcessCSV(t *testing.T) {
 func processCSVRecords(t *testing.T, records [][]string, giteeToken, githubToken string) [][]string {
 	// 添加新列到表头
 	headers := records[0]
-	headers = append(headers, "Commit数量", "PR总数", "PR-Open", "PR-Merged", "PR-Closed")
+	headers = append(headers, "是否可访问", "Commit数量", "PR总数", "PR-Open", "PR-Merged", "PR-Closed")
 
 	// 为所有数据行添加空列
 	for i := 1; i < len(records); i++ {
-		records[i] = append(records[i], "", "", "", "", "")
+		records[i] = append(records[i], "", "", "", "", "", "")
 	}
 
 	// 更新表头
@@ -215,35 +215,55 @@ func processCSVRecords(t *testing.T, records [][]string, giteeToken, githubToken
 			continue
 		}
 
-		// 获取 Commit 数量
+		// 检查仓库是否可访问
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		commitCount, _, err := client.GetCommitCount(ctx, repoPath, token)
+		_, err := client.GetEvents(ctx, repoPath, token)
 		cancel()
 
 		if err != nil {
+			t.Logf("  Repository not accessible: %v", err)
+			record[2] = "不可访问"
+			// 不可访问时，其他字段留空
+			record[3] = ""
+			record[4] = ""
+			record[5] = ""
+			record[6] = ""
+			record[7] = ""
+			continue
+		}
+
+		t.Logf("  Repository accessible")
+		record[2] = "可访问"
+
+		// 获取 Commit 数量
+		ctx2, cancel2 := context.WithTimeout(context.Background(), 30*time.Second)
+		commitCount, _, err := client.GetCommitCount(ctx2, repoPath, token)
+		cancel2()
+
+		if err != nil {
 			t.Logf("  GetCommitCount error: %v", err)
-			record[2] = "错误"
+			record[3] = "错误"
 		} else {
-			record[2] = formatInt(commitCount)
+			record[3] = formatInt(commitCount)
 			t.Logf("  Commits: %d", commitCount)
 		}
 
 		// 获取 PR 统计
-		ctx2, cancel2 := context.WithTimeout(context.Background(), 30*time.Second)
-		stats, _, err := client.GetPRStats(ctx2, repoPath, token)
-		cancel2()
+		ctx3, cancel3 := context.WithTimeout(context.Background(), 30*time.Second)
+		stats, _, err := client.GetPRStats(ctx3, repoPath, token)
+		cancel3()
 
 		if err != nil {
 			t.Logf("  GetPRStats error: %v", err)
-			record[3] = "错误"
 			record[4] = "错误"
 			record[5] = "错误"
 			record[6] = "错误"
+			record[7] = "错误"
 		} else {
-			record[3] = formatInt(stats.Total)
-			record[4] = formatInt(stats.Open)
-			record[5] = formatInt(stats.Merged)
-			record[6] = formatInt(stats.Closed)
+			record[4] = formatInt(stats.Total)
+			record[5] = formatInt(stats.Open)
+			record[6] = formatInt(stats.Merged)
+			record[7] = formatInt(stats.Closed)
 			t.Logf("  PRs: Total=%d, Open=%d, Merged=%d, Closed=%d",
 				stats.Total, stats.Open, stats.Merged, stats.Closed)
 		}
