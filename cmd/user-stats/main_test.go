@@ -98,10 +98,11 @@ func TestGiteeRepository(t *testing.T) {
 func TestProcessCSV(t *testing.T) {
 	// 读取环境变量中的 token
 	// GitHub Actions 不允许设置 GITHUB_ 开头的 secret，所以支持多个环境变量名
+	// 优先使用 GH_TOKEN，因为 GitHub Actions 会自动设置 GITHUB_TOKEN 但权限可能不够
 	giteeToken := os.Getenv("GITEE_TOKEN")
-	githubToken := os.Getenv("GITHUB_TOKEN")
+	githubToken := os.Getenv("GH_TOKEN")
 	if githubToken == "" {
-		githubToken = os.Getenv("GH_TOKEN") // 备用变量名
+		githubToken = os.Getenv("GITHUB_TOKEN") // 备用变量名
 	}
 
 	if giteeToken == "" && githubToken == "" {
