@@ -394,44 +394,60 @@ func TestGitHubClient_GetPRList_AuthorInfo(t *testing.T) {
 	client := NewClient()
 	ctx := context.Background()
 
-	// 使用 goplus/llpkg - 一个中等规模的公开仓库
-	repo := "goplus/llpkg"
+	// 使用 luoliwoshang/prompt-front-overflow - 有 79 个 PR 的仓库
+	// 测试最早的 22 个 PR（按创建时间正序）
+	repo := "luoliwoshang/prompt-front-overflow"
 
 	prs, _, err := client.getPRList(ctx, repo, "")
 	if err != nil {
 		t.Fatalf("Failed to get PR list: %v", err)
 	}
 
-	if len(prs) == 0 {
-		t.Fatal("No PRs found in test repository - this should not happen for goplus/llpkg")
+	if len(prs) < 22 {
+		t.Fatalf("Expected at least 22 PRs, but got %d", len(prs))
 	}
 
-	pr := prs[0]
-	t.Logf("✅ GitHub PR Author Info:")
-	t.Logf("  Login: %s", pr.Author.Login)
-	t.Logf("  Name: %s", pr.Author.Name)
-	t.Logf("  Email: %s", pr.Author.Email)
-	t.Logf("  PR State: %s", pr.State)
-
-	// 验证第一个 PR 的固定数据（基于当前 API 返回的真实数据）
-	// goplus/llpkg 的第一个 PR（按创建时间倒序）的作者是 aofei
-	expectedLogin := "aofei"
-	if pr.Author.Login != expectedLogin {
-		t.Errorf("Expected first PR author login to be %s, but got %s", expectedLogin, pr.Author.Login)
+	// getPRList 按创建时间倒序返回（最新的在前）
+	// 所以 prs[len-22:] 是最早的 22 个 PR
+	startIdx := len(prs) - 22
+	if startIdx < 0 {
+		startIdx = 0
 	}
+	earliest22 := prs[startIdx:]
 
-	// GitHub PR 列表 API 不返回 Name 和 Email，应该为空
-	if pr.Author.Name != "" {
-		t.Errorf("Expected author name to be empty (GitHub API doesn't return it), but got %s", pr.Author.Name)
-	}
-	if pr.Author.Email != "" {
-		t.Errorf("Expected author email to be empty (GitHub API doesn't return it), but got %s", pr.Author.Email)
+	t.Logf("Total PRs: %d, testing earliest 22 PRs (index %d to %d)", len(prs), startIdx, len(prs)-1)
+
+	// 验证最早的 22 个 PR 的作者信息
+	// 第一个是 luoliwoshang (PR#58)，后面 21 个都是 xgopilot[bot]
+	expectedAuthors := make([]string, 22)
+	expectedAuthors[0] = "luoliwoshang"
+	for i := 1; i < 22; i++ {
+		expectedAuthors[i] = "xgopilot[bot]"
 	}
 
-	// 验证 PR 状态也被正确解析
-	if pr.State == "" {
-		t.Error("Expected PR to have a state, but got empty string")
+	for i, pr := range earliest22 {
+		t.Logf("PR #%d Author: %s (expected: %s)", i, pr.Author.Login, expectedAuthors[i])
+
+		// 验证作者 Login 匹配预期
+		if pr.Author.Login != expectedAuthors[i] {
+			t.Errorf("PR #%d: Expected author login to be %s, but got %s", i, expectedAuthors[i], pr.Author.Login)
+		}
+
+		// GitHub PR 列表 API 不返回 Name 和 Email，应该为空
+		if pr.Author.Name != "" {
+			t.Errorf("PR #%d: Expected author name to be empty (GitHub API doesn't return it), but got %s", i, pr.Author.Name)
+		}
+		if pr.Author.Email != "" {
+			t.Errorf("PR #%d: Expected author email to be empty (GitHub API doesn't return it), but got %s", i, pr.Author.Email)
+		}
+
+		// 验证 PR 状态
+		if pr.State == "" {
+			t.Errorf("PR #%d: Expected PR to have a state, but got empty string", i)
+		}
 	}
+
+	t.Logf("✅ Verified 22 earliest PRs: 1 by luoliwoshang, 21 by xgopilot[bot]")
 }
 
 // Helper function to check if string contains substring
