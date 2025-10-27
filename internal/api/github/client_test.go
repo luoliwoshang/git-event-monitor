@@ -409,62 +409,66 @@ func TestGitHubClient_GetPRList_AuthorInfo(t *testing.T) {
 
 	t.Logf("Total PRs fetched: %d", len(prs))
 
-	// 测试最旧的 22 个 PR（在数组末尾）
-	// 这 22 个 PR 中：1 个是 luoliwoshang (PR#58)，21 个是 xgopilot[bot]
-	// 按照从旧到新的顺序：PR#11, #12, #17, #18, ..., #57, #58
-	oldest22 := prs[len(prs)-22:]
+	// 反转数组，使其从旧到新排列，更直观
+	// 反转后：prs[0] = PR#11 (最旧), prs[21] = PR#58, ..., prs[78] = PR#158 (最新)
+	reversed := make([]models.PullRequest, len(prs))
+	for i, pr := range prs {
+		reversed[len(prs)-1-i] = pr
+	}
 
-	// 预期的作者（从旧到新）：最后一个是 luoliwoshang，前面 21 个是 bot
-	// 但在数组中，因为是倒序，所以第 0 个是 PR#58 (luoliwoshang)，后面是更旧的 bot PR
+	// 测试最旧的 22 个 PR（现在在数组开头）
+	// PR#11 到 PR#58（不连续）
+	// 前 21 个是 xgopilot[bot]，第 22 个（PR#58）是 luoliwoshang
+	oldest22 := reversed[:22]
+
 	expectedAuthors := []string{
-		"luoliwoshang", // prs[57] = PR#58 (最旧的第 22 个)
-		"xgopilot[bot]", // prs[58] = PR#57
-		"xgopilot[bot]", // prs[59] = PR#55
-		"xgopilot[bot]", // prs[60] = PR#53
-		"xgopilot[bot]", // prs[61] = PR#52
-		"xgopilot[bot]", // prs[62] = PR#51
-		"xgopilot[bot]", // prs[63] = PR#49
-		"xgopilot[bot]", // prs[64] = PR#47
-		"xgopilot[bot]", // prs[65] = PR#38
-		"xgopilot[bot]", // prs[66] = PR#33
-		"xgopilot[bot]", // prs[67] = PR#31
-		"xgopilot[bot]", // prs[68] = PR#29
-		"xgopilot[bot]", // prs[69] = PR#28
-		"xgopilot[bot]", // prs[70] = PR#27
-		"xgopilot[bot]", // prs[71] = PR#25
-		"xgopilot[bot]", // prs[72] = PR#23
-		"xgopilot[bot]", // prs[73] = PR#20
-		"xgopilot[bot]", // prs[74] = PR#19
-		"xgopilot[bot]", // prs[75] = PR#18
-		"xgopilot[bot]", // prs[76] = PR#17
-		"xgopilot[bot]", // prs[77] = PR#12
-		"xgopilot[bot]", // prs[78] = PR#11 (最旧的第 1 个)
+		"xgopilot[bot]",  // PR#11 (最旧)
+		"xgopilot[bot]",  // PR#12
+		"xgopilot[bot]",  // PR#17
+		"xgopilot[bot]",  // PR#18
+		"xgopilot[bot]",  // PR#19
+		"xgopilot[bot]",  // PR#20
+		"xgopilot[bot]",  // PR#23
+		"xgopilot[bot]",  // PR#25
+		"xgopilot[bot]",  // PR#27
+		"xgopilot[bot]",  // PR#28
+		"xgopilot[bot]",  // PR#29
+		"xgopilot[bot]",  // PR#31
+		"xgopilot[bot]",  // PR#33
+		"xgopilot[bot]",  // PR#38
+		"xgopilot[bot]",  // PR#47
+		"xgopilot[bot]",  // PR#49
+		"xgopilot[bot]",  // PR#51
+		"xgopilot[bot]",  // PR#52
+		"xgopilot[bot]",  // PR#53
+		"xgopilot[bot]",  // PR#55
+		"xgopilot[bot]",  // PR#57
+		"luoliwoshang",   // PR#58 (第 22 个最旧的)
 	}
 
 	for i, pr := range oldest22 {
-		globalIdx := len(prs) - 22 + i
 		expected := expectedAuthors[i]
 
 		// 验证作者 Login 匹配预期
 		if pr.Author.Login != expected {
-			t.Errorf("Index %d: Expected author to be %s, but got %s", globalIdx, expected, pr.Author.Login)
+			t.Errorf("PR #%d: Expected author to be %s, but got %s", i+1, expected, pr.Author.Login)
 		}
 
 		// GitHub PR 列表 API 不返回 Name 和 Email，应该为空
 		if pr.Author.Name != "" {
-			t.Errorf("Index %d: Expected author name to be empty (GitHub API doesn't return it), but got %s", globalIdx, pr.Author.Name)
+			t.Errorf("PR #%d: Expected author name to be empty (GitHub API doesn't return it), but got %s", i+1, pr.Author.Name)
 		}
 		if pr.Author.Email != "" {
-			t.Errorf("Index %d: Expected author email to be empty (GitHub API doesn't return it), but got %s", globalIdx, pr.Author.Email)
+			t.Errorf("PR #%d: Expected author email to be empty (GitHub API doesn't return it), but got %s", i+1, pr.Author.Email)
 		}
 
 		// 验证 PR 状态
 		if pr.State == "" {
-			t.Errorf("Index %d: Expected PR to have a state, but got empty string", globalIdx)
+			t.Errorf("PR #%d: Expected PR to have a state, but got empty string", i+1)
 		}
 	}
 
-	t.Logf("✅ Verified 22 oldest PRs: 1 by luoliwoshang, 21 by xgopilot[bot]")
+	t.Logf("✅ Verified 22 oldest PRs (from oldest to newest): 21 by xgopilot[bot], 1 by luoliwoshang")
 }
 
 // Helper function to check if string contains substring
