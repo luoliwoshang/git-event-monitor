@@ -440,3 +440,12 @@ func (c *Client) GetPRStats(ctx context.Context, repo string, token string) (*mo
 
 	return stats, isComplete, nil
 }
+
+// GetPRList 获取 GitHub 仓库的 PR 列表（公开方法）
+// 返回值：
+//   - prs: PR列表，包含状态和作者信息
+//   - isComplete: 是否完整获取（true=完整统计，false=达到1000上限）
+//   - error: 错误信息
+func (c *Client) GetPRList(ctx context.Context, repo string, token string) ([]models.PullRequest, bool, error) {
+	return c.getPRList(ctx, repo, token)
+}
