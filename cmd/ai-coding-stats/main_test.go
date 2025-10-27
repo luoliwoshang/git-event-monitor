@@ -122,8 +122,8 @@ func TestParseRepoURL(t *testing.T) {
 // TestWriteCSV 测试 CSV 写入
 func TestWriteCSV(t *testing.T) {
 	records := [][]string{
-		{"议题名称", "仓库地址", "合并PR总数", "AI生成PR数", "AI Coding浓度"},
-		{"A.议题1：智能客服", "https://github.com/test/repo", "10", "5", "50.00%"},
+		{"议题名称", "仓库地址", "访问状态", "合并PR总数", "AI生成PR数", "AI Coding浓度"},
+		{"A.议题1：智能客服", "https://github.com/test/repo", "可访问", "10", "5", "50.00%"},
 	}
 
 	var buf bytes.Buffer

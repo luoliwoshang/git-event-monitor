@@ -92,7 +92,7 @@ func processRecords(records [][]string) ([][]string, error) {
 
 	// 构建输出记录（包含表头）
 	result := [][]string{
-		{"议题名称", "仓库地址", "合并PR总数", "AI生成PR数", "AI Coding浓度"},
+		{"议题名称", "仓库地址", "访问状态", "合并PR总数", "AI生成PR数", "AI Coding浓度"},
 	}
 
 	// 跳过表头，处理数据行
@@ -109,7 +109,7 @@ func processRecords(records [][]string) ([][]string, error) {
 		repo := parseRepoURL(repoURL)
 		if repo == "" {
 			fmt.Fprintf(os.Stderr, "Warning: Invalid repo URL: %s\n", repoURL)
-			result = append(result, []string{topicName, repoURL, "0", "0", "0.00%"})
+			result = append(result, []string{topicName, repoURL, "无法访问", "", "", ""})
 			continue
 		}
 
@@ -117,7 +117,7 @@ func processRecords(records [][]string) ([][]string, error) {
 		prs, _, err := client.GetPRList(ctx, repo, githubToken)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: Failed to get PRs for %s: %v\n", repo, err)
-			result = append(result, []string{topicName, repoURL, "0", "0", "0.00%"})
+			result = append(result, []string{topicName, repoURL, "无法访问", "", "", ""})
 			continue
 		}
 
@@ -144,6 +144,7 @@ func processRecords(records [][]string) ([][]string, error) {
 		result = append(result, []string{
 			topicName,
 			repoURL,
+			"可访问",
 			fmt.Sprintf("%d", totalMerged),
 			fmt.Sprintf("%d", botMerged),
 			percentage,
