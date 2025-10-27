@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -129,7 +130,21 @@ func TestProcessCSV(t *testing.T) {
 		// 处理 CSV
 		processedRecords := processCSVRecords(t, records, giteeToken, githubToken)
 
-		// 读取期望的输出文件
+		// 检查是否为生成模式
+		genMode := os.Getenv("GEN_EXPECTED")
+		if genMode == "true" || genMode == "1" {
+			// 生成模式：将处理结果写入 expected 文件
+			expectedFile := filepath.Join("testdata", "test_expected.csv")
+			err = writeCSVFile(expectedFile, processedRecords)
+			if err != nil {
+				t.Fatalf("Failed to write expected CSV: %v", err)
+			}
+			t.Logf("✅ Generated expected output file: %s", expectedFile)
+			t.Log("📝 Expected file has been updated. Please review and commit the changes.")
+			return // 生成模式下不进行验证，直接返回
+		}
+
+		// 正常测试模式：读取期望的输出文件并对比
 		expectedFile := filepath.Join("testdata", "test_expected.csv")
 		expectedRecords, err := readCSVFile(expectedFile)
 		if err != nil {
@@ -250,7 +265,7 @@ func processCSVRecords(t *testing.T, records [][]string, giteeToken, githubToken
 			t.Logf("  GetCommitCount error: %v", err)
 			record[3] = "错误"
 		} else {
-			record[3] = formatInt(commitCount)
+			record[3] = strconv.Itoa(commitCount)
 			t.Logf("  Commits: %d", commitCount)
 		}
 
@@ -266,10 +281,10 @@ func processCSVRecords(t *testing.T, records [][]string, giteeToken, githubToken
 			record[6] = "错误"
 			record[7] = "错误"
 		} else {
-			record[4] = formatInt(stats.Total)
-			record[5] = formatInt(stats.Open)
-			record[6] = formatInt(stats.Merged)
-			record[7] = formatInt(stats.Closed)
+			record[4] = strconv.Itoa(stats.Total)
+			record[5] = strconv.Itoa(stats.Open)
+			record[6] = strconv.Itoa(stats.Merged)
+			record[7] = strconv.Itoa(stats.Closed)
 			t.Logf("  PRs: Total=%d, Open=%d, Merged=%d, Closed=%d",
 				stats.Total, stats.Open, stats.Merged, stats.Closed)
 		}
@@ -304,17 +319,16 @@ func writeCSVFile(filename string, records [][]string) error {
 	return writer.WriteAll(records)
 }
 
-// parseRepositoryURL 解析仓库 URL（简化版，复用 csv-processor 的逻辑）
+// parseRepositoryURL 解析仓库 URL
 func parseRepositoryURL(url string) (platform, owner, repo string) {
-	// 简单实现：检查是否包含 github 或 gitee
-	if contains(url, "github") {
-		// 简单解析 github.com/owner/repo
+	// 检查是否包含 github 或 gitee
+	urlLower := strings.ToLower(url)
+	if strings.Contains(urlLower, "github") {
 		parts := extractRepoPath(url)
 		if len(parts) == 2 {
 			return "github", parts[0], parts[1]
 		}
-	} else if contains(url, "gitee") {
-		// 简单解析 gitee.com/owner/repo
+	} else if strings.Contains(urlLower, "gitee") {
 		parts := extractRepoPath(url)
 		if len(parts) == 2 {
 			return "gitee", parts[0], parts[1]
@@ -323,57 +337,21 @@ func parseRepositoryURL(url string) (platform, owner, repo string) {
 	return "", "", ""
 }
 
-// contains 检查字符串是否包含子串（不区分大小写）
-func contains(s, substr string) bool {
-	s = toLower(s)
-	substr = toLower(substr)
-	return len(s) >= len(substr) && findSubstring(s, substr) != -1
-}
-
-func toLower(s string) string {
-	result := make([]byte, len(s))
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c >= 'A' && c <= 'Z' {
-			result[i] = c + 32
-		} else {
-			result[i] = c
-		}
-	}
-	return string(result)
-}
-
-func findSubstring(s, substr string) int {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		match := true
-		for j := 0; j < len(substr); j++ {
-			if s[i+j] != substr[j] {
-				match = false
-				break
-			}
-		}
-		if match {
-			return i
-		}
-	}
-	return -1
-}
-
 // extractRepoPath 从 URL 中提取 owner/repo
 func extractRepoPath(url string) []string {
 	// 移除协议前缀
-	url = removePrefix(url, "https://")
-	url = removePrefix(url, "http://")
-	url = removePrefix(url, "git@")
+	url = strings.TrimPrefix(url, "https://")
+	url = strings.TrimPrefix(url, "http://")
+	url = strings.TrimPrefix(url, "git@")
 
 	// 替换 : 为 /
-	url = replace(url, ":", "/")
+	url = strings.ReplaceAll(url, ":", "/")
 
 	// 移除 .git 后缀
-	url = removeSuffix(url, ".git")
+	url = strings.TrimSuffix(url, ".git")
 
 	// 分割路径
-	parts := split(url, "/")
+	parts := strings.Split(url, "/")
 
 	// 期望格式: domain/owner/repo
 	if len(parts) >= 3 {
@@ -381,93 +359,4 @@ func extractRepoPath(url string) []string {
 	}
 
 	return nil
-}
-
-func removePrefix(s, prefix string) string {
-	if len(s) >= len(prefix) {
-		match := true
-		for i := 0; i < len(prefix); i++ {
-			if s[i] != prefix[i] {
-				match = false
-				break
-			}
-		}
-		if match {
-			return s[len(prefix):]
-		}
-	}
-	return s
-}
-
-func removeSuffix(s, suffix string) string {
-	if len(s) >= len(suffix) {
-		match := true
-		start := len(s) - len(suffix)
-		for i := 0; i < len(suffix); i++ {
-			if s[start+i] != suffix[i] {
-				match = false
-				break
-			}
-		}
-		if match {
-			return s[:start]
-		}
-	}
-	return s
-}
-
-func replace(s, old, new string) string {
-	result := ""
-	i := 0
-	for i < len(s) {
-		if i <= len(s)-len(old) {
-			match := true
-			for j := 0; j < len(old); j++ {
-				if s[i+j] != old[j] {
-					match = false
-					break
-				}
-			}
-			if match {
-				result += new
-				i += len(old)
-				continue
-			}
-		}
-		result += string(s[i])
-		i++
-	}
-	return result
-}
-
-func split(s, sep string) []string {
-	if len(sep) == 0 {
-		return []string{s}
-	}
-
-	var parts []string
-	start := 0
-
-	for i := 0; i <= len(s)-len(sep); i++ {
-		match := true
-		for j := 0; j < len(sep); j++ {
-			if s[i+j] != sep[j] {
-				match = false
-				break
-			}
-		}
-		if match {
-			parts = append(parts, s[start:i])
-			start = i + len(sep)
-			i += len(sep) - 1
-		}
-	}
-
-	parts = append(parts, s[start:])
-	return parts
-}
-
-// formatInt 格式化整数为字符串
-func formatInt(n int) string {
-	return strconv.Itoa(n)
 }
