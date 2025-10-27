@@ -425,15 +425,15 @@ func TestGiteeClient_GetPRList_AuthorInfo(t *testing.T) {
 		t.Errorf("Expected first PR author login to be %s, but got %s", expectedLogin, pr.Author.Login)
 	}
 
-	// Gitee 通常会返回 Name 字段
+	// Gitee API 会返回 Name 字段
 	expectedName := "guzitao"
 	if pr.Author.Name != expectedName {
 		t.Errorf("Expected first PR author name to be %s, but got %s", expectedName, pr.Author.Name)
 	}
 
-	// Email 通常为空，只记录
+	// Gitee PR 列表 API 不返回 Email，应该为空
 	if pr.Author.Email != "" {
-		t.Logf("Note: Author Email is not empty: %s (Gitee API usually doesn't return this)", pr.Author.Email)
+		t.Errorf("Expected author email to be empty (Gitee API doesn't return it), but got %s", pr.Author.Email)
 	}
 
 	// 验证 PR 状态也被正确解析

@@ -420,12 +420,12 @@ func TestGitHubClient_GetPRList_AuthorInfo(t *testing.T) {
 		t.Errorf("Expected first PR author login to be %s, but got %s", expectedLogin, pr.Author.Login)
 	}
 
-	// GitHub PR 列表 API 通常不返回 Name 和 Email
+	// GitHub PR 列表 API 不返回 Name 和 Email，应该为空
 	if pr.Author.Name != "" {
-		t.Logf("Note: Author Name is not empty: %s (GitHub API usually doesn't return this)", pr.Author.Name)
+		t.Errorf("Expected author name to be empty (GitHub API doesn't return it), but got %s", pr.Author.Name)
 	}
 	if pr.Author.Email != "" {
-		t.Logf("Note: Author Email is not empty: %s (GitHub API usually doesn't return this)", pr.Author.Email)
+		t.Errorf("Expected author email to be empty (GitHub API doesn't return it), but got %s", pr.Author.Email)
 	}
 
 	// 验证 PR 状态也被正确解析
