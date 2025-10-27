@@ -20,6 +20,18 @@ const (
 type PullRequest struct {
 	// State PR 状态：open, closed, merged
 	State PRState
+	// Author PR 作者信息
+	Author Author
+}
+
+// Author 代表作者信息
+type Author struct {
+	// Login 用户名
+	Login string
+	// Name 显示名称（可能为空）
+	Name string
+	// Email 邮箱地址（可能为空）
+	Email string
 }
 
 // PRStats PR 统计信息

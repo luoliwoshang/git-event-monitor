@@ -394,6 +394,54 @@ func TestGiteeClient_GetPRStats(t *testing.T) {
 	}
 }
 
+// TestGiteeClient_GetPRList_AuthorInfo 测试 PR 作者信息解析
+func TestGiteeClient_GetPRList_AuthorInfo(t *testing.T) {
+	client := NewClient()
+	ctx := context.Background()
+
+	// 使用 OpenCloudOS/OpenCloudOS-Kernel - 一个有很多 PR 的公开仓库
+	repo := "OpenCloudOS/OpenCloudOS-Kernel"
+
+	prs, _, err := client.getPRList(ctx, repo, "")
+	if err != nil {
+		t.Fatalf("Failed to get PR list: %v", err)
+	}
+
+	if len(prs) == 0 {
+		t.Fatal("No PRs found in test repository - this should not happen for OpenCloudOS/OpenCloudOS-Kernel")
+	}
+
+	pr := prs[0]
+	t.Logf("✅ Gitee PR Author Info:")
+	t.Logf("  Login: %s", pr.Author.Login)
+	t.Logf("  Name: %s", pr.Author.Name)
+	t.Logf("  Email: %s", pr.Author.Email)
+	t.Logf("  PR State: %s", pr.State)
+
+	// 验证第一个 PR 的固定数据（基于当前 API 返回的真实数据）
+	// OpenCloudOS/OpenCloudOS-Kernel 的第一个 PR（按创建时间倒序）的作者是 guzitao
+	expectedLogin := "guzitao"
+	if pr.Author.Login != expectedLogin {
+		t.Errorf("Expected first PR author login to be %s, but got %s", expectedLogin, pr.Author.Login)
+	}
+
+	// Gitee API 会返回 Name 字段
+	expectedName := "guzitao"
+	if pr.Author.Name != expectedName {
+		t.Errorf("Expected first PR author name to be %s, but got %s", expectedName, pr.Author.Name)
+	}
+
+	// Gitee PR 列表 API 不返回 Email，应该为空
+	if pr.Author.Email != "" {
+		t.Errorf("Expected author email to be empty (Gitee API doesn't return it), but got %s", pr.Author.Email)
+	}
+
+	// 验证 PR 状态也被正确解析
+	if pr.State == "" {
+		t.Error("Expected PR to have a state, but got empty string")
+	}
+}
+
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
