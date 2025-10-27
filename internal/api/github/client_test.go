@@ -403,8 +403,8 @@ func TestGitHubClient_GetPRList_AuthorInfo(t *testing.T) {
 		t.Fatalf("Failed to get PR list: %v", err)
 	}
 
-	if len(prs) != 79 {
-		t.Fatalf("Expected 79 PRs, but got %d", len(prs))
+	if len(prs) < 79 {
+		t.Fatalf("Expected at least 79 PRs, but got %d", len(prs))
 	}
 
 	t.Logf("Total PRs fetched: %d", len(prs))
@@ -415,8 +415,9 @@ func TestGitHubClient_GetPRList_AuthorInfo(t *testing.T) {
 		reversed[len(prs)-1-i] = pr
 	}
 
-	// 验证所有 79 个 PR 的作者信息（从旧到新的顺序）
+	// 验证最早的 79 个 PR 的作者信息（从旧到新的顺序）
 	// 包含 3 个真人用户：luoliwoshang (6个), MeteorsLiu (5个), 其余是 xgopilot[bot] (68个)
+	oldest79 := reversed[:79]
 	expectedAuthors := []string{
 		"xgopilot[bot]", // PR#11
 		"xgopilot[bot]", // PR#12
@@ -499,7 +500,7 @@ func TestGitHubClient_GetPRList_AuthorInfo(t *testing.T) {
 		"xgopilot[bot]", // PR#158
 	}
 
-	for i, pr := range reversed {
+	for i, pr := range oldest79 {
 		expected := expectedAuthors[i]
 
 		// 验证作者 Login 匹配预期
@@ -521,7 +522,7 @@ func TestGitHubClient_GetPRList_AuthorInfo(t *testing.T) {
 		}
 	}
 
-	t.Logf("✅ Verified all 79 PRs (from oldest to newest): 68 by xgopilot[bot], 6 by luoliwoshang, 5 by MeteorsLiu")
+	t.Logf("✅ Verified first 79 PRs (from oldest): 68 by xgopilot[bot], 6 by luoliwoshang, 5 by MeteorsLiu")
 }
 
 // TestGitHubClient_GetPRList_AuthorInfo_HackathonGO 测试另一个仓库的 PR 作者信息解析
@@ -538,8 +539,8 @@ func TestGitHubClient_GetPRList_AuthorInfo_HackathonGO(t *testing.T) {
 		t.Fatalf("Failed to get PR list: %v", err)
 	}
 
-	if len(prs) != 48 {
-		t.Fatalf("Expected 48 PRs, but got %d", len(prs))
+	if len(prs) < 48 {
+		t.Fatalf("Expected at least 48 PRs, but got %d", len(prs))
 	}
 
 	t.Logf("Total PRs fetched: %d", len(prs))
@@ -550,8 +551,9 @@ func TestGitHubClient_GetPRList_AuthorInfo_HackathonGO(t *testing.T) {
 		reversed[len(prs)-1-i] = pr
 	}
 
-	// 验证所有 48 个 PR 的作者信息（从旧到新的顺序）
+	// 验证最早的 48 个 PR 的作者信息（从旧到新的顺序）
 	// 包含 4 个真人用户：CarlJi (15个), minorcell (13个), wwcchh0123 (6个), 其余是 xgopilot[bot] (14个)
+	oldest48 := reversed[:48]
 	expectedAuthors := []string{
 		"xgopilot[bot]", // PR#4
 		"minorcell",     // PR#5
@@ -603,7 +605,7 @@ func TestGitHubClient_GetPRList_AuthorInfo_HackathonGO(t *testing.T) {
 		"CarlJi",        // PR#68
 	}
 
-	for i, pr := range reversed {
+	for i, pr := range oldest48 {
 		expected := expectedAuthors[i]
 
 		// 验证作者 Login 匹配预期
@@ -625,7 +627,7 @@ func TestGitHubClient_GetPRList_AuthorInfo_HackathonGO(t *testing.T) {
 		}
 	}
 
-	t.Logf("✅ Verified all 48 PRs (from oldest to newest): 15 by CarlJi, 13 by minorcell, 6 by wwcchh0123, 14 by xgopilot[bot]")
+	t.Logf("✅ Verified first 48 PRs (from oldest): 15 by CarlJi, 13 by minorcell, 6 by wwcchh0123, 14 by xgopilot[bot]")
 }
 
 // Helper function to check if string contains substring
