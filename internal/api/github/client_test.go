@@ -403,72 +403,125 @@ func TestGitHubClient_GetPRList_AuthorInfo(t *testing.T) {
 		t.Fatalf("Failed to get PR list: %v", err)
 	}
 
-	if len(prs) < 79 {
-		t.Fatalf("Expected at least 79 PRs, but got %d", len(prs))
+	if len(prs) != 79 {
+		t.Fatalf("Expected 79 PRs, but got %d", len(prs))
 	}
 
 	t.Logf("Total PRs fetched: %d", len(prs))
 
 	// 反转数组，使其从旧到新排列，更直观
-	// 反转后：prs[0] = PR#11 (最旧), prs[21] = PR#58, ..., prs[78] = PR#158 (最新)
 	reversed := make([]models.PullRequest, len(prs))
 	for i, pr := range prs {
 		reversed[len(prs)-1-i] = pr
 	}
 
-	// 测试最旧的 22 个 PR（现在在数组开头）
-	// PR#11 到 PR#58（不连续）
-	// 前 21 个是 xgopilot[bot]，第 22 个（PR#58）是 luoliwoshang
-	oldest22 := reversed[:22]
-
+	// 验证所有 79 个 PR 的作者信息（从旧到新的顺序）
+	// 包含 3 个真人用户：luoliwoshang (6个), MeteorsLiu (5个), 其余是 xgopilot[bot] (68个)
 	expectedAuthors := []string{
-		"xgopilot[bot]",  // PR#11 (最旧)
-		"xgopilot[bot]",  // PR#12
-		"xgopilot[bot]",  // PR#17
-		"xgopilot[bot]",  // PR#18
-		"xgopilot[bot]",  // PR#19
-		"xgopilot[bot]",  // PR#20
-		"xgopilot[bot]",  // PR#23
-		"xgopilot[bot]",  // PR#25
-		"xgopilot[bot]",  // PR#27
-		"xgopilot[bot]",  // PR#28
-		"xgopilot[bot]",  // PR#29
-		"xgopilot[bot]",  // PR#31
-		"xgopilot[bot]",  // PR#33
-		"xgopilot[bot]",  // PR#38
-		"xgopilot[bot]",  // PR#47
-		"xgopilot[bot]",  // PR#49
-		"xgopilot[bot]",  // PR#51
-		"xgopilot[bot]",  // PR#52
-		"xgopilot[bot]",  // PR#53
-		"xgopilot[bot]",  // PR#55
-		"xgopilot[bot]",  // PR#57
-		"luoliwoshang",   // PR#58 (第 22 个最旧的)
+		"xgopilot[bot]", // PR#11
+		"xgopilot[bot]", // PR#12
+		"xgopilot[bot]", // PR#17
+		"xgopilot[bot]", // PR#18
+		"xgopilot[bot]", // PR#19
+		"xgopilot[bot]", // PR#20
+		"xgopilot[bot]", // PR#23
+		"xgopilot[bot]", // PR#25
+		"xgopilot[bot]", // PR#27
+		"xgopilot[bot]", // PR#28
+		"xgopilot[bot]", // PR#29
+		"xgopilot[bot]", // PR#31
+		"xgopilot[bot]", // PR#33
+		"xgopilot[bot]", // PR#38
+		"xgopilot[bot]", // PR#47
+		"xgopilot[bot]", // PR#49
+		"xgopilot[bot]", // PR#51
+		"xgopilot[bot]", // PR#52
+		"xgopilot[bot]", // PR#53
+		"xgopilot[bot]", // PR#55
+		"xgopilot[bot]", // PR#57
+		"luoliwoshang",  // PR#58
+		"xgopilot[bot]", // PR#61
+		"xgopilot[bot]", // PR#62
+		"xgopilot[bot]", // PR#66
+		"xgopilot[bot]", // PR#67
+		"xgopilot[bot]", // PR#68
+		"xgopilot[bot]", // PR#70
+		"xgopilot[bot]", // PR#72
+		"xgopilot[bot]", // PR#74
+		"xgopilot[bot]", // PR#76
+		"xgopilot[bot]", // PR#78
+		"xgopilot[bot]", // PR#79
+		"xgopilot[bot]", // PR#80
+		"MeteorsLiu",    // PR#81
+		"xgopilot[bot]", // PR#83
+		"MeteorsLiu",    // PR#84
+		"xgopilot[bot]", // PR#85
+		"luoliwoshang",  // PR#86
+		"xgopilot[bot]", // PR#88
+		"luoliwoshang",  // PR#89
+		"xgopilot[bot]", // PR#91
+		"xgopilot[bot]", // PR#92
+		"xgopilot[bot]", // PR#94
+		"xgopilot[bot]", // PR#96
+		"xgopilot[bot]", // PR#98
+		"xgopilot[bot]", // PR#100
+		"xgopilot[bot]", // PR#101
+		"xgopilot[bot]", // PR#103
+		"luoliwoshang",  // PR#105
+		"luoliwoshang",  // PR#106
+		"luoliwoshang",  // PR#108
+		"xgopilot[bot]", // PR#112
+		"xgopilot[bot]", // PR#113
+		"xgopilot[bot]", // PR#120
+		"xgopilot[bot]", // PR#122
+		"xgopilot[bot]", // PR#124
+		"luoliwoshang",  // PR#125
+		"MeteorsLiu",    // PR#126
+		"xgopilot[bot]", // PR#129
+		"xgopilot[bot]", // PR#131
+		"MeteorsLiu",    // PR#132
+		"xgopilot[bot]", // PR#133
+		"xgopilot[bot]", // PR#134
+		"xgopilot[bot]", // PR#135
+		"xgopilot[bot]", // PR#137
+		"MeteorsLiu",    // PR#138
+		"xgopilot[bot]", // PR#139
+		"xgopilot[bot]", // PR#141
+		"xgopilot[bot]", // PR#143
+		"xgopilot[bot]", // PR#144
+		"xgopilot[bot]", // PR#146
+		"xgopilot[bot]", // PR#148
+		"xgopilot[bot]", // PR#150
+		"xgopilot[bot]", // PR#153
+		"xgopilot[bot]", // PR#155
+		"xgopilot[bot]", // PR#156
+		"xgopilot[bot]", // PR#157
+		"xgopilot[bot]", // PR#158
 	}
 
-	for i, pr := range oldest22 {
+	for i, pr := range reversed {
 		expected := expectedAuthors[i]
 
 		// 验证作者 Login 匹配预期
 		if pr.Author.Login != expected {
-			t.Errorf("PR #%d: Expected author to be %s, but got %s", i+1, expected, pr.Author.Login)
+			t.Errorf("PR index %d: Expected author to be %s, but got %s", i, expected, pr.Author.Login)
 		}
 
 		// GitHub PR 列表 API 不返回 Name 和 Email，应该为空
 		if pr.Author.Name != "" {
-			t.Errorf("PR #%d: Expected author name to be empty (GitHub API doesn't return it), but got %s", i+1, pr.Author.Name)
+			t.Errorf("PR index %d: Expected author name to be empty (GitHub API doesn't return it), but got %s", i, pr.Author.Name)
 		}
 		if pr.Author.Email != "" {
-			t.Errorf("PR #%d: Expected author email to be empty (GitHub API doesn't return it), but got %s", i+1, pr.Author.Email)
+			t.Errorf("PR index %d: Expected author email to be empty (GitHub API doesn't return it), but got %s", i, pr.Author.Email)
 		}
 
 		// 验证 PR 状态
 		if pr.State == "" {
-			t.Errorf("PR #%d: Expected PR to have a state, but got empty string", i+1)
+			t.Errorf("PR index %d: Expected PR to have a state, but got empty string", i)
 		}
 	}
 
-	t.Logf("✅ Verified 22 oldest PRs (from oldest to newest): 21 by xgopilot[bot], 1 by luoliwoshang")
+	t.Logf("✅ Verified all 79 PRs (from oldest to newest): 68 by xgopilot[bot], 6 by luoliwoshang, 5 by MeteorsLiu")
 }
 
 // Helper function to check if string contains substring
