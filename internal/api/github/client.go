@@ -377,6 +377,19 @@ func (c *Client) getPRList(ctx context.Context, repo string, token string) ([]mo
 			pr.State = models.PRStateClosed
 		}
 
+		// 解析作者信息
+		if userMap, ok := rawPR["user"].(map[string]interface{}); ok {
+			if login, ok := userMap["login"].(string); ok {
+				pr.Author.Login = login
+			}
+			if name, ok := userMap["name"].(string); ok {
+				pr.Author.Name = name
+			}
+			if email, ok := userMap["email"].(string); ok {
+				pr.Author.Email = email
+			}
+		}
+
 		prs = append(prs, pr)
 	}
 

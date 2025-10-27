@@ -394,6 +394,44 @@ func TestGiteeClient_GetPRStats(t *testing.T) {
 	}
 }
 
+// TestGiteeClient_GetPRList_AuthorInfo 测试 PR 作者信息解析
+func TestGiteeClient_GetPRList_AuthorInfo(t *testing.T) {
+	client := NewClient()
+	ctx := context.Background()
+
+	// 使用 OpenCloudOS/OpenCloudOS-Kernel - 一个有很多 PR 的公开仓库
+	repo := "OpenCloudOS/OpenCloudOS-Kernel"
+
+	prs, _, err := client.getPRList(ctx, repo, "")
+	if err != nil {
+		t.Fatalf("Failed to get PR list: %v", err)
+	}
+
+	if len(prs) == 0 {
+		t.Fatal("No PRs found in test repository - this should not happen for OpenCloudOS/OpenCloudOS-Kernel")
+	}
+
+	pr := prs[0]
+	t.Logf("✅ Gitee PR Author Info:")
+	t.Logf("  Login: %s", pr.Author.Login)
+	t.Logf("  Name: %s", pr.Author.Name)
+	t.Logf("  Email: %s", pr.Author.Email)
+	t.Logf("  PR State: %s", pr.State)
+
+	// 验证至少有 Login 字段（这是必需的）
+	if pr.Author.Login == "" {
+		t.Error("Expected PR to have author login, but got empty string")
+	}
+
+	// Name 和 Email 可能为空，只记录不报错
+	if pr.Author.Name == "" {
+		t.Log("⚠️  Author Name is empty (this might be normal)")
+	}
+	if pr.Author.Email == "" {
+		t.Log("⚠️  Author Email is empty (this might be normal)")
+	}
+}
+
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
