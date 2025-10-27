@@ -524,6 +524,110 @@ func TestGitHubClient_GetPRList_AuthorInfo(t *testing.T) {
 	t.Logf("✅ Verified all 79 PRs (from oldest to newest): 68 by xgopilot[bot], 6 by luoliwoshang, 5 by MeteorsLiu")
 }
 
+// TestGitHubClient_GetPRList_AuthorInfo_HackathonGO 测试另一个仓库的 PR 作者信息解析
+func TestGitHubClient_GetPRList_AuthorInfo_HackathonGO(t *testing.T) {
+	client := NewClient()
+	ctx := context.Background()
+
+	// 使用 wwcchh0123/hackathonGO - 有 48 个 PR 的仓库
+	// API 返回顺序：从新到旧（newest first）
+	repo := "wwcchh0123/hackathonGO"
+
+	prs, _, err := client.getPRList(ctx, repo, "")
+	if err != nil {
+		t.Fatalf("Failed to get PR list: %v", err)
+	}
+
+	if len(prs) != 48 {
+		t.Fatalf("Expected 48 PRs, but got %d", len(prs))
+	}
+
+	t.Logf("Total PRs fetched: %d", len(prs))
+
+	// 反转数组，使其从旧到新排列
+	reversed := make([]models.PullRequest, len(prs))
+	for i, pr := range prs {
+		reversed[len(prs)-1-i] = pr
+	}
+
+	// 验证所有 48 个 PR 的作者信息（从旧到新的顺序）
+	// 包含 4 个真人用户：CarlJi (15个), minorcell (13个), wwcchh0123 (6个), 其余是 xgopilot[bot] (14个)
+	expectedAuthors := []string{
+		"xgopilot[bot]", // PR#4
+		"minorcell",     // PR#5
+		"xgopilot[bot]", // PR#8
+		"xgopilot[bot]", // PR#9
+		"wwcchh0123",    // PR#10
+		"wwcchh0123",    // PR#11
+		"CarlJi",        // PR#12
+		"CarlJi",        // PR#13
+		"CarlJi",        // PR#14
+		"minorcell",     // PR#15
+		"xgopilot[bot]", // PR#18
+		"xgopilot[bot]", // PR#19
+		"CarlJi",        // PR#20
+		"CarlJi",        // PR#21
+		"wwcchh0123",    // PR#24
+		"CarlJi",        // PR#25
+		"minorcell",     // PR#26
+		"minorcell",     // PR#27
+		"CarlJi",        // PR#28
+		"wwcchh0123",    // PR#29
+		"CarlJi",        // PR#31
+		"minorcell",     // PR#32
+		"xgopilot[bot]", // PR#35
+		"xgopilot[bot]", // PR#36
+		"xgopilot[bot]", // PR#39
+		"xgopilot[bot]", // PR#40
+		"minorcell",     // PR#41
+		"CarlJi",        // PR#42
+		"wwcchh0123",    // PR#43
+		"xgopilot[bot]", // PR#45
+		"CarlJi",        // PR#46
+		"minorcell",     // PR#47
+		"minorcell",     // PR#48
+		"CarlJi",        // PR#50
+		"xgopilot[bot]", // PR#53
+		"wwcchh0123",    // PR#55
+		"xgopilot[bot]", // PR#56
+		"minorcell",     // PR#57
+		"xgopilot[bot]", // PR#58
+		"CarlJi",        // PR#59
+		"xgopilot[bot]", // PR#60
+		"minorcell",     // PR#61
+		"minorcell",     // PR#62
+		"minorcell",     // PR#63
+		"CarlJi",        // PR#64
+		"CarlJi",        // PR#65
+		"CarlJi",        // PR#66
+		"CarlJi",        // PR#68
+	}
+
+	for i, pr := range reversed {
+		expected := expectedAuthors[i]
+
+		// 验证作者 Login 匹配预期
+		if pr.Author.Login != expected {
+			t.Errorf("PR index %d: Expected author to be %s, but got %s", i, expected, pr.Author.Login)
+		}
+
+		// GitHub PR 列表 API 不返回 Name 和 Email，应该为空
+		if pr.Author.Name != "" {
+			t.Errorf("PR index %d: Expected author name to be empty (GitHub API doesn't return it), but got %s", i, pr.Author.Name)
+		}
+		if pr.Author.Email != "" {
+			t.Errorf("PR index %d: Expected author email to be empty (GitHub API doesn't return it), but got %s", i, pr.Author.Email)
+		}
+
+		// 验证 PR 状态
+		if pr.State == "" {
+			t.Errorf("PR index %d: Expected PR to have a state, but got empty string", i)
+		}
+	}
+
+	t.Logf("✅ Verified all 48 PRs (from oldest to newest): 15 by CarlJi, 13 by minorcell, 6 by wwcchh0123, 14 by xgopilot[bot]")
+}
+
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
