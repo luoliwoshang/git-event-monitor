@@ -348,45 +348,72 @@ func (c *Client) GetCommitCount(ctx context.Context, repo string, token string) 
 //   - prs: PR列表
 //   - isComplete: 是否完整获取（true=完整，false=达到1000上限）
 //   - error: 错误信息
+// internal/api/github/client.go
+// 替换整个 getPRList 函数（关键修复）
+
 func (c *Client) getPRList(ctx context.Context, repo string, token string) ([]models.PullRequest, bool, error) {
 	path := fmt.Sprintf("/repos/%s/pulls", repo)
 	params := url.Values{}
 	params.Set("state", "all")
+	params.Set("per_page", "100")
 
 	rawPRs, isComplete, err := c.getPaginatedList(ctx, path, token, params)
 	if err != nil {
 		return nil, false, err
 	}
 
-	// 转换为 PullRequest 结构并解析状态
 	var prs []models.PullRequest
 	for _, rawPR := range rawPRs {
 		pr := models.PullRequest{}
 
-		// 解析状态
+		// 基本信息
 		state, _ := rawPR["state"].(string)
 		mergedAt, _ := rawPR["merged_at"]
 
-		// GitHub API 的 state 只有 "open" 和 "closed"
-		// 需要检查 merged_at 来区分 closed 和 merged
 		if state == "open" {
 			pr.State = models.PRStateOpen
 		} else if mergedAt != nil {
 			pr.State = models.PRStateMerged
+			if t, ok := mergedAt.(string); ok {
+				pr.MergedAt = t
+			}
 		} else {
 			pr.State = models.PRStateClosed
 		}
 
-		// 解析作者信息
+		// 作者
 		if userMap, ok := rawPR["user"].(map[string]interface{}); ok {
 			if login, ok := userMap["login"].(string); ok {
 				pr.Author.Login = login
 			}
-			if name, ok := userMap["name"].(string); ok {
-				pr.Author.Name = name
-			}
-			if email, ok := userMap["email"].(string); ok {
-				pr.Author.Email = email
+		}
+
+		// 获取 PR 编号，用于调用详情 API
+		number, ok := rawPR["number"].(float64)
+		if !ok || pr.State != models.PRStateMerged {
+			prs = append(prs, pr)
+			continue
+		}
+
+		// 调用单个 PR 详情 API 获取 additions
+		detailURL := fmt.Sprintf("%s/repos/%s/pulls/%d", c.baseURL, repo, int(number))
+		req, _ := http.NewRequestWithContext(ctx, "GET", detailURL, nil)
+		req.Header.Set("Accept", "application/vnd.github+json")
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			continue // 失败跳过
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == 200 {
+			var detail map[string]interface{}
+			json.NewDecoder(resp.Body).Decode(&detail)
+			if additions, ok := detail["additions"].(float64); ok {
+				pr.Additions = int(additions)
 			}
 		}
 

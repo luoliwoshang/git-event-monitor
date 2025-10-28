@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>AI Coding 浓度看板</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; background: #f5f7fa; }
+        .header { text-align: center; padding: 30px; background: #1a1a1a; color: white; }
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        .repo-card { background: white; margin: 20px 0; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        h1 { margin: 0; font-size: 2.2em; }
+        h3 { margin: 0 0 15px 0; color: #2c3e50; font-size: 1.4em; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tabs button { padding: 10px 20px; border: none; background: #e0e0e0; cursor: pointer; border-radius: 6px; }
+        .tabs button.active { background: #1976d2; color: white; }
+        .period { margin: 15px 0; padding: 12px; background: #f8f9fa; border-radius: 8px; }
+        .period strong { color: #1976d2; }
+        .stats { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px; font-size: 0.95em; }
+        .stats span { background: #eef5ff; padding: 6px 10px; border-radius: 6px; }
+        canvas { height: 300px !important; margin: 20px 0; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>AI Coding 浓度看板</h1>
+    <p>实时监控 AI 生成代码在项目中的渗透率</p>
+</div>
+<div class="container">
+    <div id="repos"></div>
+</div>
+
+<script>
+    function formatNum(n) {
+        return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : n;
+    }
+
+    let currentRepo = null;
+
+    function showPeriod(type) {
+        document.querySelectorAll('.period-view').forEach(v => v.style.display = 'none');
+        document.getElementById(type + '-view').style.display = 'block';
+        document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+        renderCharts(type);
+    }
+
+    function renderCharts(type) {
+        const repo = currentRepo;
+        const period = repo.periods[type];
+        const current = period.current;
+        const previous = period.previous;
+
+        // 柱状图
+        const barCtx = document.getElementById(`bar-${type}`).getContext('2d');
+        if (window.barChart) window.barChart.destroy();
+        window.barChart = new Chart(barCtx, {
+            type: 'bar',
+            data: {
+                labels: ['合并PR', 'AI PR', '总代码行', 'AI代码行'],
+                datasets: [
+                    {
+                        label: '本期',
+                        data: [current.total_pr, current.ai_pr, current.total_lines, current.ai_lines],
+                        backgroundColor: 'rgba(25, 118, 210, 0.6)',
+                        yAxisID: 'y-pr'
+                    },
+                    {
+                        label: '上期',
+                        data: [previous.total_pr, previous.ai_pr, previous.total_lines, previous.ai_lines],
+                        backgroundColor: 'rgba(211, 47, 47, 0.6)',
+                        yAxisID: 'y-pr'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) {
+                                    if (context.dataIndex <= 1) {
+                                        label += context.parsed.y + ' 个';
+                                    } else {
+                                        label += formatNum(context.parsed.y) + ' 行';
+                                    }
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    'y-pr': {
+                        type: 'linear',
+                        position: 'left',
+                        title: { display: true, text: 'PR 数量 (个)' },
+                        beginAtZero: true,
+                        max: Math.max(current.total_pr, previous.total_pr, 10) * 1.5
+                    },
+                    'y-lines': {
+                        type: 'linear',
+                        position: 'right',
+                        title: { display: true, text: '代码行数' },
+                        beginAtZero: true,
+                        grid: { drawOnChartArea: false }
+                    }
+                }
+            }
+        });
+    }
+
+    fetch('data.json')
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('repos');
+            data.forEach(repo => {
+                currentRepo = repo;
+                const div = document.createElement('div');
+                div.className = 'repo-card';
+                div.innerHTML = `
+            <h3>${repo.topic} <small style="color:#666">(${repo.repo})</small></h3>
+            <div class="tabs">
+              <button onclick="showPeriod('week')" class="active">周</button>
+              <button onclick="showPeriod('month')">月</button>
+              <button onclick="showPeriod('quarter')">季度</button>
+            </div>
+
+            <div id="week-view" class="period-view">
+              <div class="period"><strong>本周：${repo.periods.week.current.display}</strong>
+                <div class="stats">
+                  <span>PR: <strong>${repo.periods.week.current.total_pr}</strong> (AI: ${repo.periods.week.current.ai_pr})</span>
+                  <span>代码行: <strong>${formatNum(repo.periods.week.current.total_lines)}</strong> (AI: ${formatNum(repo.periods.week.current.ai_lines)})</span>
+                </div>
+              </div>
+              <div class="period"><strong>上周：${repo.periods.week.previous.display}</strong>
+                <div class="stats">
+                  <span>PR: <strong>${repo.periods.week.previous.total_pr}</strong> (AI: ${repo.periods.week.previous.ai_pr})</span>
+                  <span>代码行: <strong>${formatNum(repo.periods.week.previous.total_lines)}</strong> (AI: ${formatNum(repo.periods.week.previous.ai_lines)})</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="month-view" class="period-view" style="display:none">
+              <div class="period"><strong>本月：${repo.periods.month.current.display}</strong>
+                <div class="stats">
+                  <span>PR: <strong>${repo.periods.month.current.total_pr}</strong> (AI: ${repo.periods.month.current.ai_pr})</span>
+                  <span>代码行: <strong>${formatNum(repo.periods.month.current.total_lines)}</strong> (AI: ${formatNum(repo.periods.month.current.ai_lines)})</span>
+                </div>
+              </div>
+              <div class="period"><strong>上月：${repo.periods.month.previous.display}</strong>
+                <div class="stats">
+                  <span>PR: <strong>${repo.periods.month.previous.total_pr}</strong> (AI: ${repo.periods.month.previous.ai_pr})</span>
+                  <span>代码行: <strong>${formatNum(repo.periods.month.previous.total_lines)}</strong> (AI: ${formatNum(repo.periods.month.previous.ai_lines)})</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="quarter-view" class="period-view" style="display:none">
+              <div class="period"><strong>本季度：${repo.periods.quarter.current.display}</strong>
+                <div class="stats">
+                  <span>PR: <strong>${repo.periods.quarter.current.total_pr}</strong> (AI: ${repo.periods.quarter.current.ai_pr})</span>
+                  <span>代码行: <strong>${formatNum(repo.periods.quarter.current.total_lines)}</strong> (AI: ${formatNum(repo.periods.quarter.current.ai_lines)})</span>
+                </div>
+              </div>
+              <div class="period"><strong>上季度：${repo.periods.quarter.previous.display}</strong>
+                <div class="stats">
+                  <span>PR: <strong>${repo.periods.quarter.previous.total_pr}</strong> (AI: ${repo.periods.quarter.previous.ai_pr})</span>
+                  <span>代码行: <strong>${formatNum(repo.periods.quarter.previous.total_lines)}</strong> (AI: ${formatNum(repo.periods.quarter.previous.ai_lines)})</span>
+                </div>
+              </div>
+            </div>
+
+            <canvas id="bar-week"></canvas>
+            <canvas id="bar-month" style="display:none"></canvas>
+            <canvas id="bar-quarter" style="display:none"></canvas>
+          `;
+                container.appendChild(div);
+                showPeriod('week');
+            });
+        });
+</script>
+</body>
+</html>

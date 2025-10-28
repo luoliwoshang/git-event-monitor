@@ -19,19 +19,21 @@ const (
 // PullRequest 代表一个 Pull Request / Merge Request
 type PullRequest struct {
 	// State PR 状态：open, closed, merged
-	State PRState
+	State PRState `json:"state"`
 	// Author PR 作者信息
-	Author Author
+	Author    Author `json:"author"`
+	Additions int    `json:"additions"`
+	MergedAt  string `json:"merged_at,omitempty"`
 }
 
 // Author 代表作者信息
 type Author struct {
 	// Login 用户名
-	Login string
+	Login string `json:"login"`
 	// Name 显示名称（可能为空）
-	Name string
+	Name string `json:"name,omitempty"`
 	// Email 邮箱地址（可能为空）
-	Email string
+	Email string `json:"email,omitempty"`
 }
 
 // PRStats PR 统计信息
