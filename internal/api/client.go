@@ -43,6 +43,13 @@ type Client interface {
 	//   - error: 错误信息
 	GetPRStats(ctx context.Context, repo string, token string) (stats *models.PRStats, isComplete bool, err error)
 
+	// GetFirstCommitTime 获取仓库第一个 commit 的时间
+	// 通过遍历 commits API 找到最早提交的时间
+	// 返回值：
+	//   - firstCommitTime: 第一个 commit 的时间 (ISO 8601 格式)，空仓库返回空字符串
+	//   - error: 错误信息
+	GetFirstCommitTime(ctx context.Context, repo string, token string) (string, error)
+
 	// GetPlatform 获取平台类型
 	GetPlatform() models.Platform
 }

@@ -1,8 +1,10 @@
 package models
 
 // Commit 代表一个 Git 提交
-// 目前为空结构体，后续可以扩展添加字段（如 SHA, Author, Message, Date 等）
-type Commit struct{}
+type Commit struct {
+	// AuthorDate 提交作者日期 (ISO 8601 格式)
+	AuthorDate string
+}
 
 // PRState 表示 Pull Request 的状态
 type PRState string

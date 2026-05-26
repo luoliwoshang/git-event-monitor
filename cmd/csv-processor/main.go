@@ -27,6 +27,7 @@ func main() {
 	var githubToken = flag.String("github-token", "", "GitHub API token")
 	var giteeToken = flag.String("gitee-token", "", "Gitee API token")
 	var deadline = flag.String("deadline", "", "Deadline in RFC3339 format (e.g., 2024-03-15T18:00:00Z)")
+	var startTime = flag.String("start-time", "", "Earliest allowed first-commit time in RFC3339 format (e.g., 2024-03-01T00:00:00Z)")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [options] <csv-file> <start-row> <end-row>\n", os.Args[0])
@@ -37,7 +38,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  start-row   Starting row number (1-indexed, >=2)\n")
 		fmt.Fprintf(os.Stderr, "  end-row     Ending row number (1-indexed, inclusive)\n")
 		fmt.Fprintf(os.Stderr, "\nExample:\n")
-		fmt.Fprintf(os.Stderr, "  %s --github-token=ghp_xxx --gitee-token=xxx --deadline=2024-03-15T18:00:00Z data.csv 2 4\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s --github-token=ghp_xxx --gitee-token=xxx --start-time=2024-03-01T00:00:00Z --deadline=2024-03-15T18:00:00Z data.csv 2 4\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "\nNote: start-row and end-row are 1-indexed (header is row 1, first data is row 2)\n")
 	}
 
@@ -66,6 +67,9 @@ func main() {
 	fmt.Printf("🚀 Starting CSV processing...\n")
 	fmt.Printf("File: %s\n", filename)
 	fmt.Printf("Processing rows: %d to %d\n", startRow, endRow)
+	if *startTime != "" {
+		fmt.Printf("Start time: %s\n", *startTime)
+	}
 	if *deadline != "" {
 		fmt.Printf("Deadline: %s\n", *deadline)
 	}
@@ -106,6 +110,7 @@ func main() {
 	prOpenIndex := ensureColumn(records, "PR-Open")
 	prMergedIndex := ensureColumn(records, "PR-Merged")
 	prClosedIndex := ensureColumn(records, "PR-Closed")
+	startTimeIndex := ensureColumn(records, "是否在起始时间后提交")
 
 	fmt.Printf("📍 列位置:\n")
 	fmt.Printf("  代码仓库地址: 第%d列\n", repoColumnIndex+1)
@@ -116,6 +121,7 @@ func main() {
 	fmt.Printf("  PR-Open: 第%d列\n", prOpenIndex+1)
 	fmt.Printf("  PR-Merged: 第%d列\n", prMergedIndex+1)
 	fmt.Printf("  PR-Closed: 第%d列\n", prClosedIndex+1)
+	fmt.Printf("  是否在起始时间后提交: 第%d列\n", startTimeIndex+1)
 	if nameColumnIndex != -1 {
 		fmt.Printf("  姓名: 第%d列\n", nameColumnIndex+1)
 	}
@@ -235,6 +241,40 @@ func main() {
 			updateRecord(record, prClosedIndex, strconv.Itoa(prStats.Closed)+suffix)
 			fmt.Printf("   📊 PR stats: Total=%d Open=%d Merged=%d Closed=%d\n",
 				prStats.Total, prStats.Open, prStats.Merged, prStats.Closed)
+		}
+
+		// 检查起始时间
+		if *startTime == "" {
+			updateRecord(record, startTimeIndex, "未设置起始时间")
+		} else {
+			ctxStart, cancelStart := context.WithTimeout(context.Background(), 30*time.Second)
+			firstCommitTime, startErr := client.GetFirstCommitTime(ctxStart, repoPath, currentToken)
+			cancelStart()
+			if startErr != nil {
+				fmt.Printf("   ⚠️  Failed to get first commit time: %v\n", startErr)
+				updateRecord(record, startTimeIndex, "获取失败")
+			} else if firstCommitTime == "" {
+				fmt.Printf("   ⚠️  No commits found (empty repo)\n")
+				updateRecord(record, startTimeIndex, "空仓库")
+			} else {
+				startDeadline, parseErr := time.Parse(time.RFC3339, *startTime)
+				if parseErr != nil {
+					fmt.Printf("   ⚠️  Invalid start-time format: %v\n", parseErr)
+					updateRecord(record, startTimeIndex, "参数格式错误")
+				} else {
+					firstTime, parseErr2 := time.Parse(time.RFC3339, firstCommitTime)
+					if parseErr2 != nil {
+						fmt.Printf("   ⚠️  Failed to parse first commit time: %v\n", parseErr2)
+						updateRecord(record, startTimeIndex, "时间解析失败")
+					} else if firstTime.After(startDeadline) || firstTime.Equal(startDeadline) {
+						fmt.Printf("   ✅ First commit after start time (%s)\n", firstCommitTime)
+						updateRecord(record, startTimeIndex, "在起始时间后提交")
+					} else {
+						fmt.Printf("   ❌ First commit before start time (%s)\n", firstCommitTime)
+						updateRecord(record, startTimeIndex, "在起始时间前提交")
+					}
+				}
+			}
 		}
 
 		// 如果没有截止时间，跳过提交时间检查
