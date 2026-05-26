@@ -7,9 +7,40 @@ description: Check GitHub/Gitee repositories for demo videos, presentation video
 
 Check whether a GitHub or Gitee repository has a demo video, presentation video, or walkthrough in **any form** — video files committed to the repo, external links to video platforms, or cloud storage shares.
 
-## Strategy: Remote Inspection First (No Clone Required)
+## Strategy: Remote First, Clone as Fallback
 
-**Never clone the repo.** Cloning is slow and unnecessary. Use the GitHub/Gitee API or `gh` CLI to inspect remotely. Only for repos with committed video files should you consider a shallow clone.
+Prefer API-based remote inspection. If the API is unavailable (rate limited, no `gh` CLI, network issues), fall back to `git clone --depth 1`. Cloning is slower but works when the API path is blocked.
+
+## Prerequisites & Fallbacks
+
+### gh CLI Not Installed?
+
+Check with `which gh`. If not installed, guide the user:
+
+**macOS:** `brew install gh`
+**Linux:** Follow https://github.com/cli/cli/blob/trunk/docs/install_linux.md
+**Windows:** `winget install --id GitHub.cli`
+
+If the user cannot install `gh`, offer to use `curl` + GitHub API directly, or fall back to `git clone --depth 1`.
+
+### Rate Limited by GitHub API?
+
+Without a token, GitHub's unauthenticated API allows only 60 requests/hour. **As soon as you hit a rate limit, STOP and ask the user:**
+
+> "I'm being rate-limited by GitHub. Do you have a GitHub personal access token? Create one at https://github.com/settings/tokens (only needs `public_repo` scope), then set it with: `export GH_TOKEN=ghp_xxx`"
+
+Similarly for Gitee — ask for a Gitee token and use `?access_token=xxx` in API URLs.
+
+### Git Clone Fallback
+
+If API approaches fail, use shallow clone to inspect the repo locally:
+
+```bash
+git clone --depth 1 https://github.com/{owner}/{repo}.git /tmp/demo-check/{repo}
+find /tmp/demo-check/{repo} -type f -not -path '*/.git/*'
+```
+
+Then scan the local files for video files and README content. Clean up with `rm -rf /tmp/demo-check/{repo}` when done.
 
 ## Step 1: Scan the File Tree for Committed Video Files
 
@@ -35,39 +66,53 @@ Fetch the README (without cloning):
 gh api repos/{owner}/{repo}/readme --jq '.content' | base64 -d
 ```
 
-Scan the README for:
+Scan the README for video or demo links. **The platforms listed below are common examples, NOT an exhaustive list.** Look for ANY URL that could host a demo video:
 
-### Video platform links
-```
-bilibili.com  b23.tv  youtube.com  youtu.be  vimeo.com
-```
+### Video platform links (examples)
 
-### Cloud storage / file share links
 ```
-pan.baidu.com   drive.google.com   aliyundrive.com
-lanzou (蓝奏云)   weiyun.com   115.com   mega.nz
-dropbox.com
+bilibili.com  b23.tv  youtube.com  youtu.be  vimeo.com  youku.com
+tudou.com  iqiyi.com  acfun.cn  xigua.com  douyin.com
 ```
 
-### Generic demo keywords in link context
+### Cloud storage / file share links (examples)
+
+```
+pan.baidu.com   drive.google.com   aliyundrive.com   lanzou (蓝奏云)
+weiyun.com   115.com   mega.nz   dropbox.com   onedrive.com
+quark.cn   xunlei.com   caiyun.com
+```
+
+### Archive files that may contain videos (examples)
+
+```
+.zip  .rar  .7z  .tar.gz  .tgz
+```
+
+### Generic demo keywords in link context (examples)
+
 ```
 演示  视频  demo  预览  preview  walkthrough  教程  tutorial
+showcase  overview  introduction  quickstart  getting.started
 ```
 
 Search patterns to use:
+
 ```bash
 # Video platforms
-grep -iE 'bilibili|b23\.tv|youtube|youtu\.be|vimeo'
+grep -iE 'bilibili|b23\.tv|youtube|youtu\.be|vimeo|youku|tudou|iqiyi|acfun|xigua|douyin'
 
 # Cloud storage / file sharing
-grep -iE 'pan\.baidu|drive\.google|aliyundrive|lanzou|weiyun|mega\.nz|dropbox|115\.com'
+grep -iE 'pan\.baidu|drive\.google|aliyundrive|lanzou|weiyun|mega\.nz|dropbox|115\.com|onedrive|quark|xunlei|caiyun'
 
-# Any URL near demo keywords
-grep -iE 'https?://[^ ]*' | grep -iE 'demo|视频|演示|preview|walkthrough|tutorial|教程'
+# Any URL near demo keywords — cast a wide net
+grep -iE 'https?://[^ ]*' | grep -iE 'demo|视频|演示|preview|walkthrough|tutorial|教程|showcase|overview|introduction'
 
-# .zip / .rar / .7z archive links (might be video archives)
-grep -iE 'https?://[^ ]*\.(zip|rar|7z)'
+# .zip / .rar / .7z archive links (might contain video)
+grep -iE 'https?://[^ ]*\.(zip|rar|7z|tar\.gz|tgz)'
 ```
+
+**Pro tip**: If a README is very long, don't dump the whole thing. Pipe through grep first. If nothing matches, skim the full content for any unexpected URLs.
 
 ## Step 3: Check Repo Metadata
 
@@ -114,8 +159,10 @@ After checking all 5 steps, report for each repo:
 
 ## Tips for the Agent
 
-1. **Always check remotely first** — `gh api` is fast, `git clone` is slow and may fail due to network. Only clone as a last resort for repos with committed video files you need to verify.
-2. **Token is optional** — public repos can be checked without a token, but you'll hit rate limits quickly. Suggest the user set `GH_TOKEN` if checking many repos.
-3. **Gitee repos** — the approach is the same, but use the Gitee API endpoints. `gh api` only works for GitHub. For Gitee, use `curl` with `https://gitee.com/api/v5/repos/{owner}/{repo}/...` and add `?access_token=xxx` for auth.
-4. **Multi-line README** — some READMEs are long. Always pipe through `grep` to find relevant lines rather than dumping the entire content.
-5. **Be thorough but efficient** — report `NONE` only after checking all 5 steps. Don't give false negatives.
+1. **Remote first, clone as backup** — Start with `gh api` / `curl`. If rate limited or blocked, ask for tokens. If that also fails, fall back to `git clone --depth 1`.
+2. **Ask for tokens proactively** — at the start of checking multiple repos, ask: "Do you have GitHub and Gitee tokens? I may need them to avoid rate limits." If the user doesn't have them, guide them through creation.
+3. **Gitee repos** — the approach is the same, but use Gitee API endpoints. `gh api` only works for GitHub. For Gitee, use `curl` with `https://gitee.com/api/v5/repos/{owner}/{repo}/...` and add `?access_token=xxx` for auth.
+4. **Link lists are examples** — The domains listed in Step 2 are common ones, not a complete catalog. Any URL could be a demo link. If you see an unfamiliar domain next to demo keywords, report it.
+5. **Multi-line README** — some READMEs are long. Always pipe through `grep` to find relevant lines rather than dumping the entire content.
+6. **Be thorough but efficient** — report `NONE` only after checking all 5 steps. Don't give false negatives.
+7. **Clean up clones** — if you used `git clone --depth 1` as fallback, remove the temp directory when done.
