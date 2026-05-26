@@ -111,6 +111,8 @@ func main() {
 	prMergedIndex := ensureColumn(records, "PR-Merged")
 	prClosedIndex := ensureColumn(records, "PR-Closed")
 	startTimeIndex := ensureColumn(records, "是否在起始时间后提交")
+	overdueDetailIndex := ensureColumn(records, "超时详情")
+	earlyDetailIndex := ensureColumn(records, "起始违规详情")
 
 	fmt.Printf("📍 列位置:\n")
 	fmt.Printf("  代码仓库地址: 第%d列\n", repoColumnIndex+1)
@@ -122,6 +124,8 @@ func main() {
 	fmt.Printf("  PR-Merged: 第%d列\n", prMergedIndex+1)
 	fmt.Printf("  PR-Closed: 第%d列\n", prClosedIndex+1)
 	fmt.Printf("  是否在起始时间后提交: 第%d列\n", startTimeIndex+1)
+	fmt.Printf("  超时详情: 第%d列\n", overdueDetailIndex+1)
+	fmt.Printf("  起始违规详情: 第%d列\n", earlyDetailIndex+1)
 	if nameColumnIndex != -1 {
 		fmt.Printf("  姓名: 第%d列\n", nameColumnIndex+1)
 	}
@@ -272,6 +276,7 @@ func main() {
 					} else {
 						fmt.Printf("   ❌ First commit before start time (%s)\n", firstCommitTime)
 						updateRecord(record, startTimeIndex, "在起始时间前提交")
+						updateRecord(record, earlyDetailIndex, firstCommitTime)
 					}
 				}
 			}
@@ -331,6 +336,7 @@ func main() {
 		} else {
 			fmt.Printf("   ❌ Submitted after deadline (%s)\n", result.TimeDifference)
 			updateRecord(record, submissionColumnIndex, "超时提交")
+			updateRecord(record, overdueDetailIndex, result.TimeDifference)
 		}
 
 		fmt.Println()
