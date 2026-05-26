@@ -90,47 +90,32 @@ func main() {
 	}
 
 	// 找到相关列的索引
-	headers := records[0]
-	repoColumnIndex := findColumnIndex(headers, "代码仓库地址")
-	nameColumnIndex := findColumnIndex(headers, "姓名")
-
-	// 寻找可访问性和提交状态列，如果不存在则添加
-	accessColumnIndex := findColumnIndex(headers, "是否可访问")
-	submissionColumnIndex := findColumnIndex(headers, "是否准时提交")
+	repoColumnIndex := findColumnIndex(records[0], "代码仓库地址")
+	nameColumnIndex := findColumnIndex(records[0], "姓名")
 
 	if repoColumnIndex == -1 {
 		fmt.Println("❌ 未找到'代码仓库地址'列")
 		return
 	}
 
-	// 如果结果列不存在，添加到表头
-	if accessColumnIndex == -1 {
-		headers = append(headers, "是否可访问")
-		accessColumnIndex = len(headers) - 1
-		// 为所有现有行添加空列
-		for i := 1; i < len(records); i++ {
-			records[i] = append(records[i], "")
-		}
-		fmt.Printf("📝 添加新列: 是否可访问 (第%d列)\n", accessColumnIndex+1)
-	}
-
-	if submissionColumnIndex == -1 {
-		headers = append(headers, "是否准时提交")
-		submissionColumnIndex = len(headers) - 1
-		// 为所有现有行添加空列
-		for i := 1; i < len(records); i++ {
-			records[i] = append(records[i], "")
-		}
-		fmt.Printf("📝 添加新列: 是否准时提交 (第%d列)\n", submissionColumnIndex+1)
-	}
-
-	// 更新表头
-	records[0] = headers
+	// 确保结果列存在
+	accessColumnIndex := ensureColumn(records, "是否可访问")
+	submissionColumnIndex := ensureColumn(records, "是否准时提交")
+	commitCountIndex := ensureColumn(records, "Commit数量")
+	prTotalIndex := ensureColumn(records, "PR总数")
+	prOpenIndex := ensureColumn(records, "PR-Open")
+	prMergedIndex := ensureColumn(records, "PR-Merged")
+	prClosedIndex := ensureColumn(records, "PR-Closed")
 
 	fmt.Printf("📍 列位置:\n")
 	fmt.Printf("  代码仓库地址: 第%d列\n", repoColumnIndex+1)
 	fmt.Printf("  是否可访问: 第%d列\n", accessColumnIndex+1)
 	fmt.Printf("  是否准时提交: 第%d列\n", submissionColumnIndex+1)
+	fmt.Printf("  Commit数量: 第%d列\n", commitCountIndex+1)
+	fmt.Printf("  PR总数: 第%d列\n", prTotalIndex+1)
+	fmt.Printf("  PR-Open: 第%d列\n", prOpenIndex+1)
+	fmt.Printf("  PR-Merged: 第%d列\n", prMergedIndex+1)
+	fmt.Printf("  PR-Closed: 第%d列\n", prClosedIndex+1)
 	if nameColumnIndex != -1 {
 		fmt.Printf("  姓名: 第%d列\n", nameColumnIndex+1)
 	}
@@ -212,6 +197,45 @@ func main() {
 
 		fmt.Printf("   ✅ Repository accessible\n")
 		updateRecord(record, accessColumnIndex, "可访问")
+
+		// 获取 Commit 数量
+		ctxCommit, cancelCommit := context.WithTimeout(context.Background(), 30*time.Second)
+		commitCount, commitComplete, commitErr := client.GetCommitCount(ctxCommit, repoPath, currentToken)
+		cancelCommit()
+		if commitErr != nil {
+			fmt.Printf("   ⚠️  Failed to get commit count: %v\n", commitErr)
+			updateRecord(record, commitCountIndex, "获取失败")
+		} else {
+			countStr := strconv.Itoa(commitCount)
+			if !commitComplete {
+				countStr += "+"
+			}
+			updateRecord(record, commitCountIndex, countStr)
+			fmt.Printf("   📊 Commit count: %s\n", countStr)
+		}
+
+		// 获取 PR 统计
+		ctxPR, cancelPR := context.WithTimeout(context.Background(), 30*time.Second)
+		prStats, prComplete, prErr := client.GetPRStats(ctxPR, repoPath, currentToken)
+		cancelPR()
+		if prErr != nil {
+			fmt.Printf("   ⚠️  Failed to get PR stats: %v\n", prErr)
+			updateRecord(record, prTotalIndex, "获取失败")
+			updateRecord(record, prOpenIndex, "获取失败")
+			updateRecord(record, prMergedIndex, "获取失败")
+			updateRecord(record, prClosedIndex, "获取失败")
+		} else {
+			suffix := ""
+			if !prComplete {
+				suffix = "+"
+			}
+			updateRecord(record, prTotalIndex, strconv.Itoa(prStats.Total)+suffix)
+			updateRecord(record, prOpenIndex, strconv.Itoa(prStats.Open)+suffix)
+			updateRecord(record, prMergedIndex, strconv.Itoa(prStats.Merged)+suffix)
+			updateRecord(record, prClosedIndex, strconv.Itoa(prStats.Closed)+suffix)
+			fmt.Printf("   📊 PR stats: Total=%d Open=%d Merged=%d Closed=%d\n",
+				prStats.Total, prStats.Open, prStats.Merged, prStats.Closed)
+		}
 
 		// 如果没有截止时间，跳过提交时间检查
 		if *deadline == "" {
@@ -401,6 +425,20 @@ func findColumnIndex(headers []string, columnName string) int {
 		}
 	}
 	return -1
+}
+
+// ensureColumn 确保列存在，不存在则添加到表头并为所有数据行补充空值
+func ensureColumn(records [][]string, columnName string) int {
+	idx := findColumnIndex(records[0], columnName)
+	if idx == -1 {
+		records[0] = append(records[0], columnName)
+		idx = len(records[0]) - 1
+		for i := 1; i < len(records); i++ {
+			records[i] = append(records[i], "")
+		}
+		fmt.Printf("📝 添加新列: %s (第%d列)\n", columnName, idx+1)
+	}
+	return idx
 }
 
 // updateRecord 更新记录中的指定列

@@ -22,6 +22,10 @@ type PullRequest struct {
 	State PRState
 	// Author PR 作者信息
 	Author Author
+	// CreatedAt PR 创建时间
+	CreatedAt string
+	// MergedAt PR 合并时间（仅当 State 为 merged 时有值）
+	MergedAt string
 }
 
 // Author 代表作者信息

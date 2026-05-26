@@ -365,16 +365,22 @@ func (c *Client) getPRList(ctx context.Context, repo string, token string) ([]mo
 
 		// 解析状态
 		state, _ := rawPR["state"].(string)
-		mergedAt, _ := rawPR["merged_at"]
+		mergedAt, _ := rawPR["merged_at"].(string)
 
 		// GitHub API 的 state 只有 "open" 和 "closed"
 		// 需要检查 merged_at 来区分 closed 和 merged
 		if state == "open" {
 			pr.State = models.PRStateOpen
-		} else if mergedAt != nil {
+		} else if mergedAt != "" {
 			pr.State = models.PRStateMerged
+			pr.MergedAt = mergedAt
 		} else {
 			pr.State = models.PRStateClosed
+		}
+
+		// 解析创建时间
+		if createdAt, ok := rawPR["created_at"].(string); ok {
+			pr.CreatedAt = createdAt
 		}
 
 		// 解析作者信息
@@ -439,4 +445,13 @@ func (c *Client) GetPRStats(ctx context.Context, repo string, token string) (*mo
 	}
 
 	return stats, isComplete, nil
+}
+
+// GetPRList 获取 GitHub 仓库的 PR 列表（公开方法）
+// 返回值：
+//   - prs: PR列表，包含状态和作者信息
+//   - isComplete: 是否完整获取（true=完整统计，false=达到1000上限）
+//   - error: 错误信息
+func (c *Client) GetPRList(ctx context.Context, repo string, token string) ([]models.PullRequest, bool, error) {
+	return c.getPRList(ctx, repo, token)
 }
