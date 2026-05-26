@@ -5,6 +5,8 @@ description: Batch audit CSV/Excel repositories for coding competition complianc
 
 # Git Race PR Commit Detect
 
+> **GATE CHECK: Tokens are MANDATORY.** If the user does not have both GitHub and Gitee tokens configured, DO NOT proceed past this point. Direct them to [Token Setup](#token-setup--mandatory) immediately. No exceptions.
+
 Batch audit tool for coding competitions. Reads a CSV/Excel file containing repository URLs, then for each repo checks:
 
 - **Accessibility** — whether the repo is reachable via GitHub/Gitee API
@@ -45,21 +47,30 @@ Example valid CSV:
 李四,https://gitee.com/lisi/demo
 ```
 
-## Token Setup
+## Token Setup — MANDATORY
 
-Guide the user to obtain API tokens before running:
+> **CRITICAL: Tokens are MANDATORY. The tool WILL NOT work without them.**
+> Without a token, GitHub/Gitee API requests will be rate-limited to the point of failure. Do NOT attempt to run the tool before the user has configured tokens.
 
-**GitHub:**
+Guide the user to obtain BOTH tokens before running:
+
+**GitHub Token:**
 1. Visit https://github.com/settings/tokens
-2. Create a classic token with `public_repo` scope (read-only is sufficient)
-3. Use with `--github-token=ghp_xxxxxxxxxxxx`
+2. Click "Generate new token (classic)"
+3. Select `public_repo` scope (read-only access to public repositories)
+4. Copy the generated token (starts with `ghp_`)
+5. Use with `--github-token=ghp_xxxxxxxxxxxx`
 
-**Gitee:**
+**Gitee Token:**
 1. Visit https://gitee.com/personal_access_tokens
-2. Create a token with basic read permissions
-3. Use with `--gitee-token=xxxxxxxxxxxx`
+2. Click "Generate new token"
+3. Grant basic read permissions
+4. Copy the generated token
+5. Use with `--gitee-token=xxxxxxxxxxxx`
 
-At least one token is required. If the input file contains repos from both platforms, both tokens are needed.
+**Both tokens are required** even if the input CSV only contains repos from one platform. The tool needs them to function reliably.
+
+**Token Not Ready?** If the user does not have tokens yet, STOP. Do not proceed further. Send them the links above and wait until they confirm both tokens are ready.
 
 ## How to Run
 
@@ -156,8 +167,8 @@ grep -c '^\|\n' "input.csv"
 
 ## Tips for the Agent
 
-1. **Check the CSV first** — use `go run ./cmd/csv-reader/main.go <file>` to inspect headers and row count before running.
-2. **Count rows** — row 1 is the header, data starts at row 2. The `<end-row>` should be the total line count.
-3. **Deadline timezone** — always use `+08:00` for China Standard Time unless the user specifies otherwise. Format: `YYYY-MM-DDTHH:MM:SS+08:00`.
-4. **Missing tokens** — if the user has no tokens, guide them through the setup URLs above before running.
+1. **Tokens first, ALWAYS** — This is non-negotiable. Before doing anything else, ask the user: "Do you have both GitHub and Gitee tokens ready?" If they say no or are unsure, STOP immediately and direct them to the Token Setup section. Do not proceed to CSV inspection, do not run any commands, do not offer to "try anyway." The tool will fail without tokens.
+2. **Check the CSV first** — once tokens are confirmed, use `go run ./cmd/csv-reader/main.go <file>` to inspect headers and row count.
+3. **Count rows** — row 1 is the header, data starts at row 2. The `<end-row>` should be the total line count.
+4. **Deadline timezone** — always use `+08:00` for China Standard Time unless the user specifies otherwise. Format: `YYYY-MM-DDTHH:MM:SS+08:00`.
 5. **Large files** — the tool supports both `.csv` and `.xlsx` / `.xls` formats.
