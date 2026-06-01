@@ -308,13 +308,35 @@ func (c *Client) getCommitList(ctx context.Context, repo string, token string) (
 		return nil, false, err
 	}
 
-	// 转换为 Commit 结构（目前为空结构体）
+	// 转换为 Commit 结构
 	var commits []models.Commit
-	for range rawCommits {
-		commits = append(commits, models.Commit{})
+	for _, rawCommit := range rawCommits {
+		c := models.Commit{}
+		// 提取 commit.author.date
+		if commitData, ok := rawCommit["commit"].(map[string]interface{}); ok {
+			if authorData, ok := commitData["author"].(map[string]interface{}); ok {
+				if date, ok := authorData["date"].(string); ok {
+					c.AuthorDate = date
+				}
+			}
+		}
+		commits = append(commits, c)
 	}
 
 	return commits, isComplete, nil
+}
+
+// GetFirstCommitTime 获取仓库第一个 commit 的时间
+func (c *Client) GetFirstCommitTime(ctx context.Context, repo string, token string) (string, error) {
+	commits, _, err := c.getCommitList(ctx, repo, token)
+	if err != nil {
+		return "", err
+	}
+	if len(commits) == 0 {
+		return "", nil
+	}
+	// 最后一个 commit 是最早提交的
+	return commits[len(commits)-1].AuthorDate, nil
 }
 
 // GetCommitCount 获取Gitee仓库的commit总数

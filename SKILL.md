@@ -10,7 +10,8 @@ description: Batch audit CSV/Excel repositories for coding competition complianc
 Batch audit tool for coding competitions. Reads a CSV/Excel file containing repository URLs, then for each repo checks:
 
 - **Accessibility** — whether the repo is reachable via GitHub/Gitee API
-- **Deadline compliance** — whether the latest push was before a specified cutoff
+- **Start time compliance** — whether the first commit was after a specified start time (optional)
+- **Deadline compliance** — whether the latest push was before a specified cutoff (optional)
 - **Commit count** — total number of commits (capped at 1000)
 - **PR stats** — total PRs, plus breakdown by Open / Merged / Closed
 
@@ -24,6 +25,7 @@ cd git-event-monitor
 ```
 
 **Requirements:**
+
 - Go 1.23+ must be installed (`go version`)
 - The project must be the current working directory for `go run ./cmd/...` to work
 
@@ -34,6 +36,7 @@ Always verify the user is inside the project directory before running any comman
 The input file (CSV or Excel) **must** have a column whose header **contains** `代码仓库地址` (repository URL). All other columns are optional.
 
 Supported URL formats:
+
 - `https://github.com/owner/repo` or `https://github.com/owner/repo.git`
 - `git@github.com:owner/repo.git`
 - `https://gitee.com/owner/repo` or `https://gitee.com/owner/repo.git`
@@ -55,6 +58,7 @@ Example valid CSV:
 Guide the user to obtain BOTH tokens before running:
 
 **GitHub Token:**
+
 1. Visit https://github.com/settings/tokens
 2. Click "Generate new token (classic)"
 3. Select `public_repo` scope (read-only access to public repositories)
@@ -62,6 +66,7 @@ Guide the user to obtain BOTH tokens before running:
 5. Use with `--github-token=ghp_xxxxxxxxxxxx`
 
 **Gitee Token:**
+
 1. Visit https://gitee.com/personal_access_tokens
 2. Click "Generate new token"
 3. Grant basic read permissions
@@ -78,26 +83,28 @@ Guide the user to obtain BOTH tokens before running:
 go run ./cmd/csv-processor/main.go \
   --github-token=ghp_xxxxxxxxxxxx \
   --gitee-token=xxxxxxxxxxxx \
+  --start-time=2026-05-22T00:00:00+08:00 \
   --deadline=2026-05-26T00:00:00+08:00 \
   "input.csv" <start-row> <end-row>
 ```
 
 **Arguments:**
 
-| Argument | Description |
-|---|---|
-| `--github-token` | GitHub personal access token |
-| `--gitee-token` | Gitee personal access token |
-| `--deadline` | Submission cutoff in RFC3339 format (e.g. `2026-05-26T00:00:00+08:00`) |
-| `<file>` | Path to the CSV or Excel file |
-| `<start-row>` | First data row (1-indexed, row 1 is header, so start >= 2) |
-| `<end-row>` | Last data row (1-indexed, inclusive) |
+| Argument         | Description                                                                                                                             |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `--github-token` | GitHub personal access token (required)                                                                                                 |
+| `--gitee-token`  | Gitee personal access token (required)                                                                                                  |
+| `--start-time`   | Earliest allowed first-commit time in RFC3339 format. If set, checks that each repo's first commit is at or after this time. (optional) |
+| `--deadline`     | Submission cutoff in RFC3339 format. If set, checks that each repo's latest push is at or before this time. (optional)                  |
+| `<file>`         | Path to the CSV or Excel file                                                                                                           |
+| `<start-row>`    | First data row (1-indexed, row 1 is header, so start >= 2)                                                                              |
+| `<end-row>`      | Last data row (1-indexed, inclusive)                                                                                                    |
 
-All arguments are required.
+Tokens are always required. `--start-time` and `--deadline` are optional but at least one of them should be provided for meaningful results.
 
 ## Output Columns Appended
 
-The tool generates a `_processed` file next to the original. It appends these 7 columns:
+The tool generates a `_processed` file next to the original. It appends these 10 columns:
 
 | Column | Values |
 |---|---|
@@ -108,6 +115,9 @@ The tool generates a `_processed` file next to the original. It appends these 7 
 | `PR-Open` | Open PR count |
 | `PR-Merged` | Merged PR count |
 | `PR-Closed` | Closed (unmerged) PR count |
+| `是否在起始时间后提交` | `在起始时间后提交` / `在起始时间前提交` / `空仓库` / `获取失败` |
+| `超时详情` | Time difference (e.g. "5 minutes after deadline"), only when overdue |
+| `起始违规详情` | First commit timestamp, only when earlier than start time |
 
 Existing columns with matching names (via substring match on headers) are updated in place rather than duplicated.
 
@@ -139,14 +149,14 @@ https://github.com/user/repo-name
 
 When inspecting a user's CSV, check for these issues:
 
-| Issue | Detection | Fix |
-|---|---|---|
-| Multiple URLs in one cell | Cell contains more than one `http` | Keep only the GitHub/Gitee repo URL |
-| Extra descriptions | Cell contains text beyond the URL (e.g. "Repository: ", demo links, doc links) | Strip descriptions, keep only the repo URL |
-| Newlines in cell | Cell contains `\n` | Remove newlines and extra content |
-| Missing repo URL | Cell is empty | Flag the row, cannot process |
-| Unsupported platforms | URL is not GitHub or Gitee (e.g. Google Drive, Bilibili, personal GitLab) | Remove non-repo links, keep only GitHub/Gitee URL |
-| `.git` suffix | URL ends with `.git` | This is fine, the tool handles it automatically |
+| Issue                     | Detection                                                                      | Fix                                               |
+| ------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------- |
+| Multiple URLs in one cell | Cell contains more than one `http`                                             | Keep only the GitHub/Gitee repo URL               |
+| Extra descriptions        | Cell contains text beyond the URL (e.g. "Repository: ", demo links, doc links) | Strip descriptions, keep only the repo URL        |
+| Newlines in cell          | Cell contains `\n`                                                             | Remove newlines and extra content                 |
+| Missing repo URL          | Cell is empty                                                                  | Flag the row, cannot process                      |
+| Unsupported platforms     | URL is not GitHub or Gitee (e.g. Google Drive, Bilibili, personal GitLab)      | Remove non-repo links, keep only GitHub/Gitee URL |
+| `.git` suffix             | URL ends with `.git`                                                           | This is fine, the tool handles it automatically   |
 
 ### 3. Preprocessing Steps for the Agent
 
@@ -170,5 +180,12 @@ grep -c '^\|\n' "input.csv"
 1. **Tokens first, ALWAYS** — This is non-negotiable. Before doing anything else, ask the user: "Do you have both GitHub and Gitee tokens ready?" If they say no or are unsure, STOP immediately and direct them to the Token Setup section. Do not proceed to CSV inspection, do not run any commands, do not offer to "try anyway." The tool will fail without tokens.
 2. **Check the CSV first** — once tokens are confirmed, use `go run ./cmd/csv-reader/main.go <file>` to inspect headers and row count.
 3. **Count rows** — row 1 is the header, data starts at row 2. The `<end-row>` should be the total line count.
-4. **Deadline timezone** — always use `+08:00` for China Standard Time unless the user specifies otherwise. Format: `YYYY-MM-DDTHH:MM:SS+08:00`.
+4. **Start time and deadline timezone** — always use `+08:00` for China Standard Time unless the user specifies otherwise. Format: `YYYY-MM-DDTHH:MM:SS+08:00`. Both `--start-time` and `--deadline` accept the same format.
 5. **Large files** — the tool supports both `.csv` and `.xlsx` / `.xls` formats.
+
+go run ./cmd/csv-processor/main.go \
+ --github-token=ghp_xxxxxxxxxxxx \
+ --gitee-token=xxxxxxxxxxxx \
+ --start-time=2026-05-22T00:00:00+08:00 \
+ --deadline=2026-05-25T00:00:00+08:00 \
+ "2026 暑期实训项目- HR 初筛表-5月22日至5月24日-HR 初筛.csv" 2 246
